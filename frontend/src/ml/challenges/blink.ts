@@ -1,12 +1,10 @@
+import {THRESHOLDS} from '../thresholds';
+
 export type BlinkState =
   | 'waiting_close'
   | 'waiting_open'
   | 'passed'
   | 'failed';
-
-const EYE_CLOSED = 0.3;
-const EYE_OPEN = 0.7;
-const TIMEOUT_MS = 3000;
 
 export function initBlinkState(): BlinkState {
   return 'waiting_close';
@@ -19,10 +17,14 @@ export function updateBlinkState(
   elapsedMs: number,
 ): BlinkState {
   if (state === 'passed' || state === 'failed') return state;
-  if (elapsedMs > TIMEOUT_MS) return 'failed';
+  if (elapsedMs > THRESHOLDS.CHALLENGE_STEP_TIMEOUT_MS) return 'failed';
 
-  const bothClosed = leftEyeOpen < EYE_CLOSED && rightEyeOpen < EYE_CLOSED;
-  const bothOpen = leftEyeOpen > EYE_OPEN && rightEyeOpen > EYE_OPEN;
+  const bothClosed =
+    leftEyeOpen < THRESHOLDS.EYE_CLOSED_THRESHOLD &&
+    rightEyeOpen < THRESHOLDS.EYE_CLOSED_THRESHOLD;
+  const bothOpen =
+    leftEyeOpen > THRESHOLDS.EYE_OPEN_THRESHOLD &&
+    rightEyeOpen > THRESHOLDS.EYE_OPEN_THRESHOLD;
 
   switch (state) {
     case 'waiting_close':

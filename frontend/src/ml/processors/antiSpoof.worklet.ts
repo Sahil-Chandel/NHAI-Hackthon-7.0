@@ -1,12 +1,11 @@
 import type {TensorflowModel} from 'react-native-fast-tflite';
+import {THRESHOLDS} from '../thresholds';
 
 export type AntiSpoofResult = {
   realScore: number;
   isReal: boolean;
   latencyMs: number;
 };
-
-const REAL_THRESHOLD = 0.5;
 
 function softmax3(logits: Float32Array): [number, number, number] {
   'worklet';
@@ -43,12 +42,11 @@ export function runAntiSpoof(
     const probsV2 = softmax3(rawV2);
     const probsV1SE = softmax3(rawV1SE);
 
-    // label==1 is "real face" — average both models' predictions
     const realScore = (probsV2[1] + probsV1SE[1]) / 2;
 
     return {
       realScore,
-      isReal: realScore > REAL_THRESHOLD,
+      isReal: realScore > THRESHOLDS.PAD_LIVENESS,
       latencyMs: performance.now() - start,
     };
   } catch {

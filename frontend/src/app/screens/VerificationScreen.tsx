@@ -9,7 +9,6 @@ import {
 import {useTensorflowModel} from 'react-native-fast-tflite';
 import {useRunOnJS, useSharedValue} from 'react-native-worklets-core';
 import {useFaceDetector} from 'react-native-vision-camera-face-detector';
-import type {Face as MLKitFace} from 'react-native-vision-camera-face-detector';
 import {useTranslation} from 'react-i18next';
 import {useNavigation} from '@react-navigation/native';
 
@@ -41,6 +40,7 @@ export default function VerificationScreen() {
   const [verifyPhase, setVerifyPhase] = useState<VerifyPhase>('idle');
   const [spoofResult, setSpoofResult] = useState<{isReal: boolean; score: number} | null>(null);
   const verifyPhaseShared = useSharedValue<VerifyPhase>('idle');
+  const spoofCheckedShared = useSharedValue(false);
 
   const {detection, pipelineResult, fps, templateCount, init, onFrameResult} =
     useFaceAuth();
@@ -91,10 +91,7 @@ export default function VerificationScreen() {
   const handleSpoofResult = useCallback(
     (isReal: boolean, score: number) => {
       setSpoofResult({isReal, score});
-      if (isReal) {
-        setVerifyPhase('verifying');
-        verifyPhaseShared.value = 'verifying';
-      } else {
+      if (!isReal) {
         speak(t('liveness.spoof_detected'), true);
         setVerifyPhase('done');
         verifyPhaseShared.value = 'done';
@@ -120,6 +117,7 @@ export default function VerificationScreen() {
   const handleRetry = useCallback(() => {
     liveness.reset();
     setSpoofResult(null);
+    spoofCheckedShared.value = false;
     setVerifyPhase('idle');
     verifyPhaseShared.value = 'idle';
   }, [liveness]);
@@ -144,7 +142,7 @@ export default function VerificationScreen() {
               leftEyeOpenProbability: f.leftEyeOpenProbability ?? 1,
               rightEyeOpenProbability: f.rightEyeOpenProbability ?? 1,
               smilingProbability: f.smilingProbability ?? 0,
-              yawAngle: f.yawAngle,
+              yawAngle: f.yawAngle ?? 0,
             };
             handleLivenessFaceJS(faceData);
           }
@@ -152,18 +150,18 @@ export default function VerificationScreen() {
         return;
       }
 
-      // During verifying, run anti-spoof first, then recognition
+      // During verifying, run anti-spoof once, then recognition
       if (phase === 'verifying') {
-        // Run anti-spoof if not done yet
-        if (antiSpoofV2Model && antiSpoofV1SEModel) {
+        if (!spoofCheckedShared.value && antiSpoofV2Model && antiSpoofV1SEModel) {
+          spoofCheckedShared.value = true;
           const spoofOut = runAntiSpoof(
             antiSpoofV2Model,
             antiSpoofV1SEModel,
             frame as any,
           );
-          if (spoofOut && !spoofOut.isReal) {
-            handleSpoofJS(false, spoofOut.realScore);
-            return;
+          if (spoofOut) {
+            handleSpoofJS(spoofOut.isReal, spoofOut.realScore);
+            if (!spoofOut.isReal) return;
           }
         }
 
@@ -196,6 +194,7 @@ export default function VerificationScreen() {
     },
     [
       verifyPhaseShared,
+      spoofCheckedShared,
       yunetModel,
       edgefaceModel,
       antiSpoofV2Model,

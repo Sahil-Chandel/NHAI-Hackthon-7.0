@@ -1,8 +1,6 @@
-export type SmileState = 'waiting' | 'passed' | 'failed';
+import {THRESHOLDS} from '../thresholds';
 
-const SMILE_THRESHOLD = 0.7;
-const SUSTAINED_MS = 300;
-const TIMEOUT_MS = 3000;
+export type SmileState = 'waiting' | 'passed' | 'failed';
 
 export function initSmileState(): SmileState {
   return 'waiting';
@@ -15,9 +13,12 @@ export function updateSmileState(
   sustainedMs: number,
 ): SmileState {
   if (state === 'passed' || state === 'failed') return state;
-  if (elapsedMs > TIMEOUT_MS) return 'failed';
+  if (elapsedMs > THRESHOLDS.CHALLENGE_STEP_TIMEOUT_MS) return 'failed';
 
-  if (smilingProbability > SMILE_THRESHOLD && sustainedMs >= SUSTAINED_MS) {
+  if (
+    smilingProbability > THRESHOLDS.SMILE_THRESHOLD &&
+    sustainedMs >= THRESHOLDS.SMILE_SUSTAINED_MS
+  ) {
     return 'passed';
   }
   return 'waiting';

@@ -1,3 +1,4 @@
+import {THRESHOLDS} from '../thresholds';
 import {initBlinkState, updateBlinkState, type BlinkState} from './blink';
 import {
   initHeadTurnState,
@@ -115,7 +116,7 @@ export function updateChallenge(
     }
     case 'smile': {
       const sustained =
-        face.smilingProbability > 0.7
+        face.smilingProbability > THRESHOLDS.SMILE_THRESHOLD
           ? state.smileSustainedMs + deltaMs
           : 0;
       next.smileSustainedMs = sustained;
