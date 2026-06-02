@@ -59,23 +59,27 @@ export default function AdminSignupScreen() {
 
   const submitSignup = useCallback(
     async (templateId: string) => {
-      // Prefer the persisted draft: component state (and thus formRef) is wiped
-      // if this screen remounts on return from the camera. The draft is a
-      // module-level store that survives that remount, just like the face bus.
       const draft = useSignupDraft.getState().getDraft(DRAFT_KEY);
-      const {name: n, mobile: m, aadhar: a} = draft ?? formRef.current;
-      if (!n.trim() || !isValidIndianMobile(m ?? '') || !isValidAadhar(a)) {
+      const source = draft ?? formRef.current;
+      const n = source.name ?? '';
+      const m = source.mobile ?? '';
+      const a = source.aadhar ?? '';
+      console.log('[AdminSignup] submitSignup called', {templateId, draft: !!draft, name: n, mobile: m, aadhar: a?.slice(0, 4)});
+      if (!n.trim() || !isValidIndianMobile(m) || !isValidAadhar(a)) {
+        console.log('[AdminSignup] validation failed', {name: !!n.trim(), mobile: isValidIndianMobile(m), aadhar: isValidAadhar(a)});
         setError(t('admin_signup.err_fields', 'Please fill all fields correctly before submitting'));
         setStep('form');
         return;
       }
       try {
+        console.log('[AdminSignup] calling adminSignup API...');
         const resp = await adminSignup({
           name: n.trim(),
-          mobile: normalizeMobile(m ?? ''),
+          mobile: normalizeMobile(m),
           aadhar: normalizeAadhar(a),
           face_template_id: templateId,
         });
+        console.log('[AdminSignup] API success, logging in...');
         await loginAsAdmin(resp.access_token, resp.expires_in, resp.admin);
         clearSignupDraft(DRAFT_KEY);
         setStep('done');
@@ -83,6 +87,7 @@ export default function AdminSignupScreen() {
           navigation.reset({index: 0, routes: [{name: 'AdminMain'}]});
         }, 700);
       } catch (e: any) {
+        console.log('[AdminSignup] API error:', e?.message, e?.status, e?.detail);
         const raw =
           e instanceof ApiError
             ? e.detail
@@ -101,10 +106,12 @@ export default function AdminSignupScreen() {
   useFocusEffect(
     useCallback(() => {
       const captured = consumeBus('admin_signup');
+      console.log('[AdminSignup] focusEffect fired, captured:', captured?.kind, 'step:', stepRef.current);
       if (captured && captured.kind === 'success') {
+        console.log('[AdminSignup] face captured successfully, templateId:', captured.templateId);
         setFaceTemplateId(captured.templateId);
         setStep('submitting');
-        submitSignup(captured.templateId).catch(() => {});
+        submitSignup(captured.templateId).catch(e => console.log('[AdminSignup] submitSignup catch:', e));
         return;
       }
       if (captured && captured.kind === 'error') {
