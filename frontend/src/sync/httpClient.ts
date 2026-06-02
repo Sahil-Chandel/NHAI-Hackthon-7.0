@@ -79,9 +79,18 @@ export async function apiFetch<T = any>(
     }
 
     if (!resp.ok) {
-      const detail =
-        (payload && (payload.detail || payload.message)) || `HTTP ${resp.status}`;
-      throw new ApiError(resp.status, String(detail), payload);
+      let detail = `HTTP ${resp.status}`;
+      if (payload) {
+        const raw = payload.detail || payload.message;
+        if (typeof raw === 'string') {
+          detail = raw;
+        } else if (Array.isArray(raw)) {
+          detail = raw.map((e: any) => e?.msg || JSON.stringify(e)).join('; ');
+        } else if (raw) {
+          detail = JSON.stringify(raw);
+        }
+      }
+      throw new ApiError(resp.status, detail, payload);
     }
     return payload as T;
   } catch (e: any) {

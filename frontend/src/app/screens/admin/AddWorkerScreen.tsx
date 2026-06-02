@@ -20,6 +20,7 @@ import {
 } from '../../utils/aadharValidator';
 import {createWorker} from '../../../sync/adminApi';
 import {useFaceEnrollmentBus} from '../../auth/faceEnrollmentBus';
+import {useSignupDraft} from '../../auth/signupDraft';
 import {ApiError} from '../../../sync/httpClient';
 
 type Step = 'form' | 'face_pending' | 'submitting' | 'done';
@@ -36,6 +37,9 @@ export default function AddWorkerScreen() {
   const [aadhar, setAadhar] = useState('');
   const [error, setError] = useState<string | null>(null);
   const consumeBus = useFaceEnrollmentBus(s => s.consume);
+  const setSignupDraft = useSignupDraft(s => s.setDraft);
+  const clearSignupDraft = useSignupDraft(s => s.clear);
+  const DRAFT_KEY = 'add_worker' as const;
 
   // Refs mirror state so the focus-effect callback can read the latest
   // form values (state captured in useCallback closure would be stale).
@@ -46,13 +50,22 @@ export default function AddWorkerScreen() {
 
   const submitWorker = useCallback(
     async (templateId: string) => {
-      const {name: n, aadhar: a} = formRef.current;
+      // Prefer the persisted draft: component state (and formRef) is wiped if
+      // this screen remounts on return from the camera. The draft survives.
+      const draft = useSignupDraft.getState().getDraft(DRAFT_KEY);
+      const {name: n, aadhar: a} = draft ?? formRef.current;
+      if (!n.trim() || !isValidAadhar(a)) {
+        setError(t('add_worker.err_fields', 'Please fill all fields correctly before submitting'));
+        setStep('form');
+        return;
+      }
       try {
         await createWorker({
           name: n.trim(),
           aadhar: normalizeAadhar(a),
           face_template_id: templateId,
         });
+        clearSignupDraft(DRAFT_KEY);
         setStep('done');
         setTimeout(() => navigation.goBack(), 800);
       } catch (e: any) {
@@ -62,7 +75,7 @@ export default function AddWorkerScreen() {
         setStep('form');
       }
     },
-    [navigation, t],
+    [navigation, t, clearSignupDraft],
   );
 
   useFocusEffect(
@@ -126,6 +139,11 @@ export default function AddWorkerScreen() {
       return;
     }
     setError(null);
+    // Persist the (normalized) form so it survives a remount during capture.
+    setSignupDraft(DRAFT_KEY, {
+      name: name.trim(),
+      aadhar: normalizeAadhar(aadhar),
+    });
     const tempUserId = `worker-${Date.now().toString(36)}`;
     setStep('face_pending');
     navigation.navigate('Enroll', {

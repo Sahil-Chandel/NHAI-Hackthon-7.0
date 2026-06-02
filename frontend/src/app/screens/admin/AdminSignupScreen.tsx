@@ -23,6 +23,7 @@ import {
 import {adminSignup} from '../../../sync/adminApi';
 import {useSession} from '../../auth/sessionStore';
 import {useFaceEnrollmentBus} from '../../auth/faceEnrollmentBus';
+import {useSignupDraft} from '../../auth/signupDraft';
 import {ApiError} from '../../../sync/httpClient';
 
 type Step = 'form' | 'face_pending' | 'submitting' | 'done';
@@ -52,32 +53,46 @@ export default function AdminSignupScreen() {
 
   const loginAsAdmin = useSession(s => s.loginAsAdmin);
   const consumeBus = useFaceEnrollmentBus(s => s.consume);
+  const setSignupDraft = useSignupDraft(s => s.setDraft);
+  const clearSignupDraft = useSignupDraft(s => s.clear);
+  const DRAFT_KEY = 'admin_signup' as const;
 
   const submitSignup = useCallback(
     async (templateId: string) => {
-      const {name: n, mobile: m, aadhar: a} = formRef.current;
+      // Prefer the persisted draft: component state (and thus formRef) is wiped
+      // if this screen remounts on return from the camera. The draft is a
+      // module-level store that survives that remount, just like the face bus.
+      const draft = useSignupDraft.getState().getDraft(DRAFT_KEY);
+      const {name: n, mobile: m, aadhar: a} = draft ?? formRef.current;
+      if (!n.trim() || !isValidIndianMobile(m ?? '') || !isValidAadhar(a)) {
+        setError(t('admin_signup.err_fields', 'Please fill all fields correctly before submitting'));
+        setStep('form');
+        return;
+      }
       try {
         const resp = await adminSignup({
           name: n.trim(),
-          mobile: normalizeMobile(m),
+          mobile: normalizeMobile(m ?? ''),
           aadhar: normalizeAadhar(a),
           face_template_id: templateId,
         });
         await loginAsAdmin(resp.access_token, resp.expires_in, resp.admin);
+        clearSignupDraft(DRAFT_KEY);
         setStep('done');
         setTimeout(() => {
           navigation.reset({index: 0, routes: [{name: 'AdminMain'}]});
         }, 700);
       } catch (e: any) {
-        const msg =
+        const raw =
           e instanceof ApiError
             ? e.detail
             : e?.message || t('admin_signup.err_generic', 'Signup failed');
+        const msg = typeof raw === 'string' ? raw : JSON.stringify(raw);
         setError(msg);
         setStep('form');
       }
     },
-    [loginAsAdmin, navigation, t],
+    [loginAsAdmin, navigation, t, clearSignupDraft],
   );
 
   // When user returns from face enrollment screen, the bus tells us whether
@@ -145,6 +160,13 @@ export default function AdminSignupScreen() {
       return;
     }
     setError(null);
+    // Persist the (normalized) form so it survives a remount while the user is
+    // in the camera screen — submitSignup reads this draft back on return.
+    setSignupDraft(DRAFT_KEY, {
+      name: name.trim(),
+      mobile: normalizeMobile(mobile),
+      aadhar: normalizeAadhar(aadhar),
+    });
     const tempUserId = `admin-${Date.now().toString(36)}`;
     setStep('face_pending');
     navigation.navigate('Enroll', {
