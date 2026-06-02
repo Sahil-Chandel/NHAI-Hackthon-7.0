@@ -16,7 +16,18 @@ import '../services/tts_service.dart';
 enum EnrollStep { form, capture, processing }
 
 class EnrollmentScreen extends StatefulWidget {
-  const EnrollmentScreen({super.key});
+  final String? prefilledUserId;
+  final String? prefilledName;
+  final String? purpose;
+  final String? returnTo;
+
+  const EnrollmentScreen({
+    super.key,
+    this.prefilledUserId,
+    this.prefilledName,
+    this.purpose,
+    this.returnTo,
+  });
 
   @override
   State<EnrollmentScreen> createState() => _EnrollmentScreenState();

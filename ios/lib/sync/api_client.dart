@@ -22,6 +22,7 @@ class ApiClient {
     ));
   }
 
+  Dio get dio => _dio;
   String? get token => _token;
 
   void setToken(String token) {

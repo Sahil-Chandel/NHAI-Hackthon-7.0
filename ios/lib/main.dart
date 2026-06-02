@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'theme/app_theme.dart';
 import 'i18n/app_localizations.dart';
+import 'services/session_store.dart';
 import 'app_router.dart';
 
 void main() {
@@ -18,6 +19,7 @@ class NhaiFaceAuthApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => ThemeNotifier()),
         ChangeNotifierProvider(create: (_) => LocaleNotifier()),
+        ChangeNotifierProvider(create: (_) => SessionStore()..init()),
       ],
       child: Consumer2<ThemeNotifier, LocaleNotifier>(
         builder: (context, themeNotifier, localeNotifier, _) {
