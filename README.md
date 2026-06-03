@@ -12,7 +12,9 @@ https://github.com/user-attachments/assets/683d9cca-107a-47d5-9b51-bf5f6ba8fa67
 
 **📱 App Demo** — the working app in action
 
-https://github.com/user-attachments/assets/fe422f45-db00-412e-8678-ce0fcc8e34cb
+<video src="https://github.com/pramiq-admin/NHAI-Hackathon-7.0/raw/main/final_app_demo.mp4" controls muted width="320"></video>
+
+▶️ [Watch the app demo](https://github.com/pramiq-admin/NHAI-Hackathon-7.0/raw/main/final_app_demo.mp4) (if the player above doesn't load)
 
 📊 **Slides:** [NHAI Hackathon 7.0 Pitch Deck (PDF)](./NHAI%20Hackathon%207.0%20Pitch%20Deck.pdf)
 
