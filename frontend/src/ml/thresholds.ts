@@ -3,12 +3,17 @@ export const THRESHOLDS = {
   DETECTION_CONFIDENCE: 0.4,
   DETECTION_IOU_NMS: 0.3,
 
-  // Face recognition (EdgeFace / ML Kit signature) — tuned in Phase 8
-  MATCH_COSINE: 0.5,
+  // Face recognition (EdgeFace / ML Kit signature) — tuned in Phase 8.
+  // Raised 0.5→0.6 so punch-in/punch-out reject a non-matching face more
+  // reliably (same-person self-match vs the 3-angle averaged template usually
+  // scores ~0.7-0.9, so the real worker still passes comfortably). Lower back
+  // toward 0.55 if a legitimate worker ever gets falsely rejected.
+  MATCH_COSINE: 0.6,
   MATCH_REJECT: 0.3,
 
-  // BioHash (ISO/IEC 24745) — Hamming distance threshold (normalized 0-1)
-  BIOHASH_HAMMING_MAX: 0.35,
+  // BioHash (ISO/IEC 24745) — Hamming distance threshold (normalized 0-1).
+  // Tightened 0.35→0.30 alongside MATCH_COSINE for a stricter combined gate.
+  BIOHASH_HAMMING_MAX: 0.3,
 
   // Anti-spoof (MiniFASNet) — start conservative, tune up in Phase 8
   PAD_LIVENESS: 0.5,

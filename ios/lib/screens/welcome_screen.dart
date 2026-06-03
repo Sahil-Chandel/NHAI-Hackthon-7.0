@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../i18n/app_localizations.dart';
 import '../theme/app_theme.dart';
 import '../theme/colors.dart';
+import '../services/session_store.dart';
 
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
@@ -35,7 +36,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     );
     _animController.forward();
 
-    _autoNavTimer = Timer(const Duration(seconds: 2), _navigateToHome);
+    _autoNavTimer = Timer(const Duration(seconds: 2), _navigate);
   }
 
   @override
@@ -45,9 +46,16 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     super.dispose();
   }
 
-  void _navigateToHome() {
-    if (mounted) {
-      context.go('/home');
+  // Worker-only entry: a returning worker (valid session) goes straight to
+  // Punch; everyone else starts the one-time Datalake onboarding. Admin is no
+  // longer reachable from the app entry.
+  void _navigate() {
+    if (!mounted) return;
+    final session = SessionStore();
+    if (session.isWorker && session.token != null) {
+      context.go('/worker/punch');
+    } else {
+      context.go('/worker/onboard');
     }
   }
 
@@ -77,28 +85,19 @@ class _WelcomeScreenState extends State<WelcomeScreen>
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // NHAI Logo circle
+                  // NHAI logo
                   Container(
-                    width: 120,
-                    height: 120,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
                     decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: colors.accent,
-                        width: 3,
-                      ),
-                      color: colors.surface,
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
                     ),
-                    child: const Center(
-                      child: Text(
-                        'NFA',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 32,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 2,
-                        ),
-                      ),
+                    child: Image.asset(
+                      'assets/nhai_logo.png',
+                      width: 150,
+                      height: 96,
+                      fit: BoxFit.contain,
                     ),
                   ),
                   const SizedBox(height: 32),
@@ -127,7 +126,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: _navigateToHome,
+                      onPressed: _navigate,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: colors.primary,
                         foregroundColor: Colors.white,
@@ -136,9 +135,9 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      child: const Text(
-                        'Get Started',
-                        style: TextStyle(
+                      child: Text(
+                        loc?.t('welcome.worker_btn') ?? 'Login as Worker',
+                        style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w700,
                         ),
@@ -146,6 +145,18 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                     ),
                   ),
                   const SizedBox(height: 48),
+                  // Developed-by credit
+                  Text(
+                    loc?.t('welcome.credit') ?? 'Developed by PramIQ',
+                    style: TextStyle(
+                      color: colors.text,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.5,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
                   // Footer
                   Text(
                     loc?.t('welcome.footer') ??

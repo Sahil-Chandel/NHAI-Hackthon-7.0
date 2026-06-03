@@ -16,6 +16,7 @@ import AdminMain from './AdminTabs';
 import AddWorkerScreen from '../screens/admin/AddWorkerScreen';
 import AdminWorkerCalendarScreen from '../screens/admin/AdminWorkerCalendarScreen';
 import WorkerLoginScreen from '../screens/worker/WorkerLoginScreen';
+import WorkerOnboardScreen from '../screens/worker/WorkerOnboardScreen';
 import PunchScreen from '../screens/worker/PunchScreen';
 import PunchCaptureScreen from '../screens/worker/PunchCaptureScreen';
 import PunchResultScreen from '../screens/worker/PunchResultScreen';
@@ -34,7 +35,7 @@ export type RootStackParamList = {
     | {
         prefilledUserId?: string;
         prefilledName?: string;
-        purpose?: 'admin_signup' | 'add_worker' | 'standalone';
+        purpose?: 'admin_signup' | 'add_worker' | 'worker_onboard' | 'standalone';
         returnTo?: keyof RootStackParamList;
       };
   Verify: undefined;
@@ -49,6 +50,7 @@ export type RootStackParamList = {
   AdminWorkerCalendar: {workerId: string; workerName: string};
 
   // Worker
+  WorkerOnboard: undefined;
   WorkerLogin: undefined;
   WorkerHome: undefined;
   PunchCapture: {type: 'in' | 'out'};
@@ -94,6 +96,7 @@ export default function RootStack() {
       />
 
       {/* Worker */}
+      <Stack.Screen name="WorkerOnboard" component={WorkerOnboardScreen} />
       <Stack.Screen name="WorkerLogin" component={WorkerLoginScreen} />
       <Stack.Screen name="WorkerHome" component={PunchScreen} />
       <Stack.Screen

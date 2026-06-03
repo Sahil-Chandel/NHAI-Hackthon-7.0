@@ -160,9 +160,14 @@ class _PunchScreenState extends State<PunchScreen> {
     if (_punchInTime == null) return '--:--';
     final end = _punchOutTime ?? DateTime.now();
     final diff = end.difference(_punchInTime!);
-    final hours = diff.inHours;
-    final minutes = diff.inMinutes.remainder(60);
-    return '${hours}h ${minutes}m';
+    final h = diff.inHours;
+    final m = diff.inMinutes.remainder(60);
+    final s = diff.inSeconds.remainder(60);
+    // Show seconds for sub-hour spans (parity with Android) so a short
+    // in->out gap is visible instead of "0h 0m".
+    if (h > 0) return '${h}h ${m.toString().padLeft(2, '0')}m';
+    if (m > 0) return '${m}m ${s.toString().padLeft(2, '0')}s';
+    return '${s}s';
   }
 
   @override

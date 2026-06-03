@@ -5,7 +5,9 @@ class ApiClient {
   late final Dio _dio;
   String? _token;
 
-  ApiClient({String baseUrl = 'http://localhost:8000/api/v1'}) {
+  // Tunnel root (no /api/v1 suffix) — every endpoint path below includes the
+  // full /api/v1/... prefix, matching the backend the Android app uses.
+  ApiClient({String baseUrl = 'https://evidence-prefix-tool-syndrome.trycloudflare.com'}) {
     _dio = Dio(BaseOptions(
       baseUrl: baseUrl,
       connectTimeout: const Duration(seconds: 10),
@@ -62,6 +64,39 @@ class ApiClient {
   Future<Map<String, dynamic>> queryAttendance(
       Map<String, dynamic> filters) async {
     final response = await _dio.get('/attendance', queryParameters: filters);
+    return response.data as Map<String, dynamic>;
+  }
+
+  // ---------- Datalake 3.0 worker self-onboarding ----------
+
+  /// Step 1: match First/Last/mobile/email against the Datalake registry.
+  /// On success the backend returns a worker JWT + profile (worker.id == uuid).
+  Future<Map<String, dynamic>> verifyWorker({
+    required String firstName,
+    required String lastName,
+    required String mobile,
+    required String email,
+  }) async {
+    final response = await _dio.post('/api/v1/worker/verify', data: {
+      'first_name': firstName,
+      'last_name': lastName,
+      'mobile': mobile,
+      'email': email,
+    });
+    return response.data as Map<String, dynamic>;
+  }
+
+  /// Step 2 (one-time): persist the enrolled face. Requires the worker token
+  /// (set via [setToken] after verify). Backend dual-writes the embedding into
+  /// the registry row and returns 409 if a face is already registered.
+  Future<Map<String, dynamic>> registerFace({
+    required String faceTemplateId,
+    required List<double> embedding,
+  }) async {
+    final response = await _dio.post('/api/v1/worker/register-face', data: {
+      'face_template_id': faceTemplateId,
+      'embedding': embedding,
+    });
     return response.data as Map<String, dynamic>;
   }
 }

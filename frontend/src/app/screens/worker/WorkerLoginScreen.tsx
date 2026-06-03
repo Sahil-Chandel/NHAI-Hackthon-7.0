@@ -129,7 +129,7 @@ export default function WorkerLoginScreen() {
           </View>
 
           {error && (
-            <Text style={[styles.errorText, {fontSize: f.body}]}>{error}</Text>
+            <Text style={[styles.errorText, {color: c.danger, fontSize: f.body}]}>{error}</Text>
           )}
 
           <TouchableOpacity

@@ -1,4 +1,4 @@
-import React, {useMemo, useState, useCallback} from 'react';
+import React, {useMemo, useState, useCallback, useRef, useEffect} from 'react';
 import {
   StyleSheet,
   Text,
@@ -52,8 +52,13 @@ function summarize(events: PunchEventRow[]): CalendarDayData[] {
     let punchIn: PunchEventRow | undefined;
     let punchOut: PunchEventRow | undefined;
     for (const e of arr) {
-      if (e.type === 'in') punchIn = e;
-      else if (e.type === 'out') punchOut = e;
+      // earliest 'in' (arr is timestamp-ascending) and latest 'out' so the
+      // worked span covers the whole day, not just the last in/out cycle.
+      if (e.type === 'in') {
+        if (!punchIn) punchIn = e;
+      } else if (e.type === 'out') {
+        punchOut = e;
+      }
     }
     let status: DayStatus = 'absent';
     let dur: number | null = null;
@@ -85,6 +90,12 @@ export default function WorkerCalendarScreen() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [month, setMonth] = useState<string>(currentMonthString);
+  // Latest selected month — lets an async loadRemote discard its result if the
+  // user switched months while it was in flight (avoids stale-month merge).
+  const monthRef = useRef(month);
+  useEffect(() => {
+    monthRef.current = month;
+  }, [month]);
 
   // --- Loaders -----------------------------------------------------------
   // Both `loadLocal` and `loadRemote` depend ONLY on (workerId, month) — never
@@ -140,6 +151,9 @@ export default function WorkerCalendarScreen() {
           lastSyncError: null,
           createdAt: new Date(r.created_at).getTime(),
         }));
+        // Discard if the user switched months while this fetch was in flight,
+        // otherwise the old month's rows merge into the new month's state.
+        if (m !== monthRef.current) return;
         // Merge: prefer locally-tracked entries (unsynced) over remote copies.
         // Uses functional setState so we read the FRESHEST prev state without
         // declaring `events` as a dep.
@@ -197,8 +211,12 @@ export default function WorkerCalendarScreen() {
     let punchIn: PunchEventRow | undefined;
     let punchOut: PunchEventRow | undefined;
     for (const e of selectedDayEvents) {
-      if (e.type === 'in') punchIn = e;
-      else if (e.type === 'out') punchOut = e;
+      // earliest 'in', latest 'out' — see summarize()
+      if (e.type === 'in') {
+        if (!punchIn) punchIn = e;
+      } else if (e.type === 'out') {
+        punchOut = e;
+      }
     }
     const dur =
       punchIn && punchOut && punchOut.timestamp > punchIn.timestamp
@@ -212,7 +230,7 @@ export default function WorkerCalendarScreen() {
       <SafeAreaView style={styles.safe}>
         <ScrollView contentContainerStyle={styles.scroll}>
           <View style={styles.headerRow}>
-            <TouchableOpacity onPress={() => navigation.goBack()}>
+            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
               <Text style={[styles.back, {color: '#FFF', fontSize: f.body}]}>‹ {t('common.back')}</Text>
             </TouchableOpacity>
             {loading && <ActivityIndicator color="#FFF" />}
@@ -224,13 +242,21 @@ export default function WorkerCalendarScreen() {
 
           <View style={styles.statsRow}>
             <GlassCard intensity="med" style={styles.statCard}>
-              <Text style={[styles.statValue, {color: '#FFF', fontSize: f.title}]}>{totalDays}</Text>
+              <Text
+                style={[styles.statValue, {color: '#FFF', fontSize: f.title}]}
+                numberOfLines={1}
+                adjustsFontSizeToFit>
+                {totalDays}
+              </Text>
               <Text style={[styles.statLabel, {color: 'rgba(255,255,255,0.75)'}]}>
                 {t('worker_cal.full_days', 'Full days')}
               </Text>
             </GlassCard>
             <GlassCard intensity="med" style={styles.statCard}>
-              <Text style={[styles.statValue, {color: '#FFF', fontSize: f.title}]}>
+              <Text
+                style={[styles.statValue, {color: '#FFF', fontSize: f.title}]}
+                numberOfLines={1}
+                adjustsFontSizeToFit>
                 {Math.floor(totalMinutes / 60)}h
               </Text>
               <Text style={[styles.statLabel, {color: 'rgba(255,255,255,0.75)'}]}>
@@ -238,7 +264,10 @@ export default function WorkerCalendarScreen() {
               </Text>
             </GlassCard>
             <GlassCard intensity="med" style={styles.statCard}>
-              <Text style={[styles.statValue, {color: '#FFF', fontSize: f.title}]}>
+              <Text
+                style={[styles.statValue, {color: '#FFF', fontSize: f.title}]}
+                numberOfLines={1}
+                adjustsFontSizeToFit>
                 {Math.floor(avgMinutes / 60)}h {avgMinutes % 60}m
               </Text>
               <Text style={[styles.statLabel, {color: 'rgba(255,255,255,0.75)'}]}>
@@ -264,7 +293,9 @@ export default function WorkerCalendarScreen() {
           onRequestClose={() => setSelectedDate(null)}>
           <View style={styles.modalBg}>
             <GlassCard intensity="high" style={styles.modalCard}>
-              <Text style={[styles.modalTitle, {color: '#FFF', fontSize: f.title}]}>
+              <Text
+                style={[styles.modalTitle, {color: '#FFF', fontSize: f.title}]}
+                numberOfLines={1}>
                 {selectedDate}
               </Text>
               {selectedDayEvents.length === 0 ? (
@@ -293,7 +324,7 @@ export default function WorkerCalendarScreen() {
                   {selectedDaySummary.punchIn &&
                     (selectedDaySummary.punchIn.gpsLat ||
                       selectedDaySummary.punchOut?.gpsLat) && (
-                      <Text style={[styles.modalGps, {color: 'rgba(255,255,255,0.7)'}]}>
+                      <Text style={[styles.modalGps, {color: 'rgba(255,255,255,0.7)'}]} numberOfLines={1}>
                         📍{' '}
                         {(
                           selectedDaySummary.punchIn.gpsLat ??
@@ -327,10 +358,11 @@ const styles = StyleSheet.create({
   safe: {flex: 1},
   scroll: {padding: SPACING.lg, paddingBottom: SPACING.xxl},
   headerRow: {flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between'},
+  backBtn: {minHeight: 44, justifyContent: 'center'},
   back: {fontWeight: '600'},
   title: {fontWeight: '800', marginTop: SPACING.sm, marginBottom: SPACING.lg},
   statsRow: {flexDirection: 'row', gap: SPACING.sm, marginBottom: SPACING.lg},
-  statCard: {flex: 1, padding: SPACING.md, alignItems: 'center'},
+  statCard: {flex: 1, padding: SPACING.md, alignItems: 'center', overflow: 'hidden'},
   statValue: {fontWeight: '900'},
   statLabel: {fontSize: 11, marginTop: 2, textAlign: 'center', fontWeight: '600'},
   calCard: {padding: SPACING.md},
@@ -341,7 +373,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: SPACING.lg,
   },
-  modalCard: {padding: SPACING.lg, minWidth: '85%', gap: SPACING.sm},
+  modalCard: {padding: SPACING.lg, minWidth: '85%', maxWidth: '95%', gap: SPACING.sm},
   modalTitle: {fontWeight: '800', textAlign: 'center', marginBottom: SPACING.sm},
   modalRow: {fontSize: 16, fontWeight: '600'},
   modalDur: {fontSize: 18, fontWeight: '800', marginTop: SPACING.xs},

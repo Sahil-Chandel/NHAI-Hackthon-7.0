@@ -204,12 +204,21 @@ export function markSynced(ids: string[]): void {
   );
 }
 
-export function markSyncFailed(ids: string[], error: string): void {
+export function markSyncFailed(
+  ids: string[],
+  error: string,
+  incrementAttempts = true,
+): void {
   if (ids.length === 0) return;
   const db = getDb();
   const placeholders = ids.map(() => '?').join(',');
+  // Only consume the lifetime retry budget for SERVER-side rejections. A
+  // transient network/timeout failure must NOT count toward MAX_SYNC_ATTEMPTS,
+  // otherwise repeated manual Sync taps while offline/flaky-tunnel would
+  // silently strand genuine, never-uploaded events past the budget forever.
+  const setAttempts = incrementAttempts ? 'sync_attempts = sync_attempts + 1, ' : '';
   db.execute(
-    `UPDATE punch_events SET sync_attempts = sync_attempts + 1, last_sync_error = ? WHERE id IN (${placeholders})`,
+    `UPDATE punch_events SET ${setAttempts}last_sync_error = ? WHERE id IN (${placeholders})`,
     [error, ...ids],
   );
 }

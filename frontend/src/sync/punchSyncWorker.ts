@@ -49,6 +49,8 @@ export type PunchSyncResult = {
   failed: number;
   authMissing?: boolean;
   networkError?: boolean;
+  /** A sync was already in flight; this call did nothing (not a success). */
+  skipped?: boolean;
 };
 
 /**
@@ -56,7 +58,7 @@ export type PunchSyncResult = {
  * Only runs if a worker JWT is present. Idempotent on event_id (backend handles dupes).
  */
 export async function triggerPunchSync(maxBatches = 5): Promise<PunchSyncResult> {
-  if (inFlight) return {attempted: 0, synced: 0, failed: 0};
+  if (inFlight) return {attempted: 0, synced: 0, failed: 0, skipped: true};
 
   const role = useSession.getState().role;
   const token = useSession.getState().token;
@@ -100,7 +102,10 @@ export async function triggerPunchSync(maxBatches = 5): Promise<PunchSyncResult>
         }
       } catch (e: any) {
         networkError = true;
-        markSyncFailed(rows.map(r => r.id), e?.message || 'network');
+        // Transient network/timeout failure → record the error but do NOT burn
+        // the lifetime retry budget (incrementAttempts=false), so these events
+        // stay retryable on the next manual Sync instead of being stranded.
+        markSyncFailed(rows.map(r => r.id), e?.message || 'network', false);
         totalFailed += rows.length;
         break; // stop further batches on hard failure
       }

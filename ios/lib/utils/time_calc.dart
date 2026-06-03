@@ -1,8 +1,12 @@
 String formatDuration(Duration d) {
   final h = d.inHours;
   final m = d.inMinutes.remainder(60);
-  if (h > 0) return '${h}h ${m}m';
-  return '${m}m';
+  final s = d.inSeconds.remainder(60);
+  // Show seconds for sub-hour spans so a short in->out gap is visible
+  // instead of "0m" (parity with the Android app).
+  if (h > 0) return '${h}h ${m.toString().padLeft(2, '0')}m';
+  if (m > 0) return '${m}m ${s.toString().padLeft(2, '0')}s';
+  return '${s}s';
 }
 
 String formatTimeOfDay(DateTime dt) {

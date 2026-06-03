@@ -64,6 +64,51 @@ export async function workerLogin(payload: {
   });
 }
 
+// --- Datalake 3.0 self-onboarding ---
+
+export type FaceRegisterResponse = {
+  ok: boolean;
+  worker_id: string;
+  face_template_id: string;
+  data_lake_updated: boolean;
+};
+
+/**
+ * Step 1: match the worker's First/Last/mobile/email against the Datalake 3.0
+ * registry. On success the backend returns a worker JWT + profile (its `id` is
+ * the registry uuid). No prior token needed.
+ */
+export async function workerVerify(payload: {
+  first_name: string;
+  last_name: string;
+  mobile: string;
+  email: string;
+}): Promise<WorkerTokenResponse> {
+  return apiFetch('/api/v1/worker/verify', {
+    method: 'POST',
+    body: payload,
+    auth: false,
+  });
+}
+
+/**
+ * Step 2 (one-time): persist the enrolled face. The averaged embedding is
+ * dual-written into the worker's registry row server-side. We pass the freshly
+ * issued onboarding token explicitly because the session isn't committed until
+ * face registration succeeds (so a half-onboarded worker can't reach Punch).
+ */
+export async function registerWorkerFace(
+  payload: {face_template_id: string; embedding: number[]},
+  token: string,
+): Promise<FaceRegisterResponse> {
+  return apiFetch('/api/v1/worker/register-face', {
+    method: 'POST',
+    body: payload,
+    auth: false,
+    headers: {Authorization: `Bearer ${token}`},
+  });
+}
+
 export async function createWorker(payload: {
   name: string;
   aadhar: string;

@@ -45,6 +45,7 @@ flutter:
   assets:
     - assets/models/
     - assets/i18n/
+    - assets/nhai_logo.png
 
   fonts:
     - family: NotoSansDevanagari

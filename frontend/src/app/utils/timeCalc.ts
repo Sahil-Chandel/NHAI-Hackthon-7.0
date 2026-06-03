@@ -7,15 +7,22 @@ export type Duration = {
 
 export function calculateDuration(startMs: number, endMs: number): Duration {
   let diff = Math.max(0, endMs - startMs);
-  const totalMinutes = Math.floor(diff / 60000);
+  const totalSeconds = Math.floor(diff / 1000);
+  const totalMinutes = Math.floor(totalSeconds / 60);
   const hours = Math.floor(totalMinutes / 60);
   const minutes = totalMinutes % 60;
-  return {
-    hours,
-    minutes,
-    totalMinutes,
-    formatted: `${hours}h ${minutes.toString().padStart(2, '0')}m`,
-  };
+  const seconds = totalSeconds % 60;
+  // Include seconds for sub-hour spans so a short in→out gap (e.g. a quick
+  // test punch a few seconds apart) is actually visible instead of "0h 00m".
+  let formatted: string;
+  if (hours > 0) {
+    formatted = `${hours}h ${minutes.toString().padStart(2, '0')}m`;
+  } else if (minutes > 0) {
+    formatted = `${minutes}m ${seconds.toString().padStart(2, '0')}s`;
+  } else {
+    formatted = `${seconds}s`;
+  }
+  return {hours, minutes, totalMinutes, formatted};
 }
 
 export function formatTimeOfDay(ms: number, locale = 'en-IN'): string {

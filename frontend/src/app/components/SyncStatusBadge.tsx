@@ -35,6 +35,9 @@ export default function SyncStatusBadge() {
 
   const synced = count === 0;
   const bg = synced ? c.success : c.warning;
+  // AAA success/warning are light (neon green / amber) → white is unreadable;
+  // use black foreground in AAA, matching aaaTheme.actionButtonText.
+  const fg = isAAA ? '#000' : '#FFF';
 
   return (
     <TouchableOpacity
@@ -42,9 +45,9 @@ export default function SyncStatusBadge() {
       disabled={syncing || synced}
       style={[styles.badge, {backgroundColor: bg, borderColor: c.border}]}>
       {syncing ? (
-        <ActivityIndicator color="#FFF" size="small" />
+        <ActivityIndicator color={fg} size="small" />
       ) : (
-        <Text style={[styles.badgeText, {color: '#FFF', fontSize: f.caption}]}>
+        <Text style={[styles.badgeText, {color: fg, fontSize: f.caption}]}>
           {synced
             ? `✓ ${t('sync.all_synced', 'Synced')}`
             : `⏳ ${t('sync.pending_count', {count, defaultValue: '{{count}} pending'})}`}
@@ -64,6 +67,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: SPACING.xs,
     minHeight: 28,
+    maxWidth: 160,
     justifyContent: 'center',
   },
   badgeText: {fontWeight: '700'},

@@ -131,11 +131,19 @@ export function enrollFace(
   userId: string,
   name: string,
   embedding: number[],
+  skipDuplicateCheck = false,
 ): {id: string; bioHashStored: boolean} {
-  // Duplicate face check — prevent enrolling same face under a different identity
-  const existingMatch = findBestMatch(embedding, THRESHOLDS.MATCH_COSINE);
-  if (existingMatch && existingMatch.userId !== userId) {
-    throw new DuplicateFaceError(existingMatch.userId, existingMatch.name);
+  // Duplicate face check — prevent enrolling the same face under a different
+  // identity. Skipped for Datalake worker onboarding: identity is already
+  // established by the 4-field registry match + JWT, and the weak ML-Kit
+  // landmark signature can false-positive between similar (e.g. related) faces
+  // on a shared device, which would otherwise permanently lock a legitimate
+  // worker out of onboarding.
+  if (!skipDuplicateCheck) {
+    const existingMatch = findBestMatch(embedding, THRESHOLDS.MATCH_COSINE);
+    if (existingMatch && existingMatch.userId !== userId) {
+      throw new DuplicateFaceError(existingMatch.userId, existingMatch.name);
+    }
   }
 
   const salt = generateSalt();

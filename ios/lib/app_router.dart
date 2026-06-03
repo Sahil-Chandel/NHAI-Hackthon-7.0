@@ -14,6 +14,7 @@ import 'screens/admin/admin_calendar_screen.dart';
 import 'screens/admin/admin_worker_calendar_screen.dart';
 import 'screens/admin/admin_settings_screen.dart';
 import 'screens/worker/worker_login_screen.dart';
+import 'screens/worker/worker_onboard_screen.dart';
 import 'screens/worker/punch_screen.dart';
 import 'screens/worker/punch_capture_screen.dart';
 import 'screens/worker/punch_result_screen.dart';
@@ -52,6 +53,7 @@ final GoRouter appRouter = GoRouter(
       ),
     ),
     GoRoute(path: '/admin/settings', name: 'AdminSettings', builder: (_, __) => const AdminSettingsScreen()),
+    GoRoute(path: '/worker/onboard', name: 'WorkerOnboard', builder: (_, __) => const WorkerOnboardScreen()),
     GoRoute(path: '/worker/login', name: 'WorkerLogin', builder: (_, __) => const WorkerLoginScreen()),
     GoRoute(path: '/worker/punch', name: 'WorkerPunch', builder: (_, __) => const PunchScreen()),
     GoRoute(

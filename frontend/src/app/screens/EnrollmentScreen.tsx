@@ -122,13 +122,17 @@ export default function EnrollmentScreen({navigation}: Props) {
   useEffect(() => {
     if (
       enrollment.step === 'idle' &&
+      !handoffDoneRef.current &&
       prefilledUserId &&
       prefilledName &&
       purpose !== 'standalone'
     ) {
       enrollment.setUserId(prefilledUserId);
       enrollment.setName(prefilledName);
-      enrollment.startEnrollment(prefilledUserId, prefilledName);
+      // Worker onboarding skips the cross-identity duplicate check (identity is
+      // already proven by the registry match + JWT); avoids false-positive
+      // lockouts between similar faces on a shared device.
+      enrollment.startEnrollment(prefilledUserId, prefilledName, purpose === 'worker_onboard');
     }
   }, [enrollment, prefilledUserId, prefilledName, purpose]);
 
@@ -234,7 +238,20 @@ export default function EnrollmentScreen({navigation}: Props) {
     );
   }
 
-  // Input form
+  // Auto-start flows (worker onboarding / admin) flip step to 'frontal' in an
+  // effect right after mount; render a loader instead of flashing the manual
+  // ID/Name form for one frame.
+  if (enrollment.step === 'idle' && purpose !== 'standalone') {
+    return (
+      <View style={[styles.container, isAAA && styles.containerAAA]}>
+        <View style={styles.form}>
+          <ActivityIndicator size="large" color={isAAA ? '#ffdd00' : '#0096ff'} />
+        </View>
+      </View>
+    );
+  }
+
+  // Input form (standalone manual enrollment)
   if (enrollment.step === 'idle') {
     return (
       <View style={[styles.container, isAAA && styles.containerAAA]}>
@@ -286,10 +303,19 @@ export default function EnrollmentScreen({navigation}: Props) {
     return (
       <View style={[styles.container, isAAA && styles.containerAAA]}>
         <View style={styles.form}>
-          <Text style={[styles.title, enrollment.step === 'done' ? styles.successText : styles.errorText]}>
+          <Text
+            style={[
+              styles.title,
+              enrollment.step === 'done' ? styles.successText : styles.errorText,
+              isAAA && styles.titleAAA,
+            ]}>
             {enrollment.step === 'done' ? t('enroll.success') : t('enroll.fail')}
           </Text>
-          {enrollment.error && <Text style={styles.errorDetail}>{enrollment.error}</Text>}
+          {enrollment.error && (
+            <Text style={[styles.errorDetail, isAAA && {color: '#FFD700'}]}>
+              {enrollment.error}
+            </Text>
+          )}
           <TouchableOpacity
             style={[styles.startBtn, isAAA && styles.startBtnAAA]}
             onPress={() => {
@@ -328,19 +354,9 @@ export default function EnrollmentScreen({navigation}: Props) {
         </Text>
       </View>
 
-      {detection && (
-        <View
-          style={[
-            styles.bbox,
-            {
-              left: detection.x,
-              top: detection.y,
-              width: detection.width,
-              height: detection.height,
-            },
-          ]}
-        />
-      )}
+      {/* Detection bbox removed: face.bounds are raw camera-frame pixels, not
+          view dp, so the box rendered mispositioned/oversized. The centered
+          dashed oval (faceGuide) is the alignment guide. */}
 
       <View style={styles.bottomBar}>
         <TouchableOpacity
@@ -351,18 +367,22 @@ export default function EnrollmentScreen({navigation}: Props) {
           ]}
           onPress={handleCapture}
           disabled={!hasFace}>
-          <Text style={[styles.captureBtnText, isAAA && styles.captureBtnTextAAA]}>
+          <Text
+            style={[styles.captureBtnText, isAAA && styles.captureBtnTextAAA]}
+            numberOfLines={1}>
             {hasFace ? t('enroll.capture_btn') : t('enroll.no_face')}
           </Text>
         </TouchableOpacity>
       </View>
 
-      <View style={styles.debugBar}>
-        <Text style={styles.debugText}>
-          {fps > 0 ? `${fps} FPS` : ''}
-          {detection ? ` | ${detection.confidence.toFixed(2)}` : ''}
-        </Text>
-      </View>
+      {__DEV__ && (
+        <View style={styles.debugBar}>
+          <Text style={styles.debugText}>
+            {fps > 0 ? `${fps} FPS` : ''}
+            {detection ? ` | ${detection.confidence.toFixed(2)}` : ''}
+          </Text>
+        </View>
+      )}
     </View>
   );
 }

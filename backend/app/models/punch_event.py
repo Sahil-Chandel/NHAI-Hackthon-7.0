@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import String, Float, DateTime, Boolean, Integer, ForeignKey
+from sqlalchemy import String, Float, DateTime, Boolean, Integer, ForeignKey, text
 from sqlalchemy.orm import Mapped, mapped_column
 from pydantic import BaseModel, Field
 
@@ -21,7 +21,7 @@ class PunchEvent(Base):
     liveness_passed: Mapped[bool] = mapped_column(Boolean, default=True)
     device_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
     sync_attempts: Mapped[int] = mapped_column(Integer, default=0)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default="now()")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=text("now()"))
 
 
 # ---------- Pydantic ----------

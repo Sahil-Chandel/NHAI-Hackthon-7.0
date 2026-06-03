@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import String, DateTime
+from sqlalchemy import String, DateTime, text
 from sqlalchemy.orm import Mapped, mapped_column
 from pydantic import BaseModel, Field
 
@@ -18,7 +18,7 @@ class Admin(Base):
     aadhar_hash: Mapped[str] = mapped_column(String(80), unique=True, index=True)
     aadhar_salt: Mapped[str] = mapped_column(String(64))
     face_template_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default="now()")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=text("now()"))
 
 
 # ---------- Pydantic ----------

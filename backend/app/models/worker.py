@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import String, DateTime, Boolean, ForeignKey
+from sqlalchemy import String, DateTime, Boolean, ForeignKey, text
 from sqlalchemy.orm import Mapped, mapped_column
 from pydantic import BaseModel, Field
 
@@ -19,7 +19,7 @@ class Worker(Base):
     face_template_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     admin_id: Mapped[str] = mapped_column(String(64), ForeignKey("admins.id"), index=True)
     active: Mapped[bool] = mapped_column(Boolean, default=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default="now()")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=text("now()"))
 
 
 # ---------- Pydantic ----------
@@ -51,3 +51,29 @@ class WorkerTokenOut(BaseModel):
     token_type: str = "bearer"
     expires_in: int
     worker: WorkerOut
+
+
+# ---------- Datalake 3.0 self-onboarding ----------
+
+class WorkerVerifyIn(BaseModel):
+    """Self-onboarding worker identity, matched against the Datalake 3.0
+    registry (data_lake_3.db). All four fields must match a registry row."""
+    first_name: str = Field(min_length=1, max_length=64)
+    last_name: str = Field(min_length=1, max_length=64)
+    mobile: str = Field(min_length=6, max_length=20)
+    email: str = Field(min_length=3, max_length=128)
+
+
+class FaceRegisterIn(BaseModel):
+    """One-time face registration payload sent after the 3-angle enrollment.
+    `embedding` is the averaged 512-d face vector; it is dual-written into the
+    worker's Datalake registry row."""
+    face_template_id: str = Field(min_length=1, max_length=64)
+    embedding: list[float] = Field(min_length=1, max_length=1024)
+
+
+class FaceRegisterOut(BaseModel):
+    ok: bool
+    worker_id: str
+    face_template_id: str
+    data_lake_updated: bool

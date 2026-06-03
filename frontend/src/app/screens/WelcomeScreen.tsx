@@ -3,6 +3,7 @@ import {
   StyleSheet,
   Text,
   View,
+  Image,
   TouchableOpacity,
   SafeAreaView,
   ActivityIndicator,
@@ -29,22 +30,24 @@ export default function WelcomeScreen() {
 
   // Compute what (if anything) we should redirect to. Memoised so the JSX
   // branch knows to hide content during the redirect frame (avoids flash).
-  const redirectTarget = useMemo<'AdminMain' | 'WorkerHome' | null>(() => {
+  // This is a worker-only app now — Admin was removed; a stale admin session
+  // (from a previous build) is cleared rather than redirected.
+  const redirectTarget = useMemo<'WorkerHome' | null>(() => {
     if (!hydrated || role === null) return null;
     if (isExpired()) return null;
-    if (role === 'admin') return 'AdminMain';
     if (role === 'worker') return 'WorkerHome';
     return null;
   }, [hydrated, role, isExpired]);
 
-  // Auto-redirect if session exists; auto-logout if expired
+  // Auto-redirect if a worker session exists; auto-logout if expired or stale
+  // admin.
   useEffect(() => {
     if (!hydrated) return;
 
-    // Expired session — clear it and stay on Welcome.
-    // `logout` is now async (it wipes keychain too); fire-and-forget is OK
-    // because we don't navigate away — we just want the cleanup to happen.
-    if (role !== null && isExpired()) {
+    // Expired session, or a leftover admin session — clear it and stay on
+    // Welcome. `logout` is now async (it wipes keychain too); fire-and-forget
+    // is OK because we don't navigate away — we just want the cleanup to happen.
+    if (role !== null && (isExpired() || role === 'admin')) {
       logout().catch(() => {});
       return;
     }
@@ -81,7 +84,7 @@ export default function WelcomeScreen() {
           <TouchableOpacity
             onPress={toggleLang}
             style={[styles.langPill, {borderColor: c.border}]}
-            accessibilityLabel="Toggle language">
+            accessibilityLabel={t('welcome.toggle_lang_a11y', 'Toggle language')}>
             <Text style={[styles.langText, {color: c.text, fontSize: f.body}]}>
               {i18n.language?.startsWith('hi') ? 'हिं | EN' : 'EN | हिं'}
             </Text>
@@ -90,16 +93,13 @@ export default function WelcomeScreen() {
 
         {/* Brand */}
         <View style={styles.brandWrap}>
-          <View
-            style={[styles.brandBadge, {backgroundColor: c.accent}]}
-            accessibilityLabel="NHAI logo">
-            <Text
-              style={[
-                styles.brandBadgeText,
-                {color: isAAA ? '#000000' : '#0A2540'},
-              ]}>
-              NHAI
-            </Text>
+          <View style={styles.logoCard}>
+            <Image
+              source={require('../../../assets/National_Highways_Authority_of_India_logo.png')}
+              style={styles.logoImg}
+              resizeMode="contain"
+              accessibilityLabel="NHAI logo"
+            />
           </View>
           <Text
             style={[
@@ -117,12 +117,12 @@ export default function WelcomeScreen() {
           </Text>
         </View>
 
-        {/* Role cards */}
+        {/* Role card — worker only */}
         <View style={styles.cardsWrap}>
           <GlassCard intensity="high" style={styles.roleCard}>
             <TouchableOpacity
               style={styles.roleInner}
-              onPress={() => navigation.navigate('WorkerLogin')}
+              onPress={() => navigation.navigate('WorkerOnboard')}
               accessibilityRole="button"
               accessibilityLabel={t('welcome.worker_btn', 'Login as Worker')}>
               <Text style={styles.roleEmoji}>👷</Text>
@@ -135,30 +135,7 @@ export default function WelcomeScreen() {
                     styles.roleSub,
                     {color: 'rgba(255,255,255,0.75)', fontSize: f.body},
                   ]}>
-                  {t('welcome.worker_hint', 'Use name + Aadhar to punch in/out')}
-                </Text>
-              </View>
-              <Text style={[styles.arrow, {color: '#FFF', fontSize: f.titleLg}]}>›</Text>
-            </TouchableOpacity>
-          </GlassCard>
-
-          <GlassCard intensity="high" style={styles.roleCard}>
-            <TouchableOpacity
-              style={styles.roleInner}
-              onPress={() => navigation.navigate('AdminAuth')}
-              accessibilityRole="button"
-              accessibilityLabel={t('welcome.admin_btn', 'Admin Login / Signup')}>
-              <Text style={styles.roleEmoji}>🛡️</Text>
-              <View style={{flex: 1}}>
-                <Text style={[styles.roleTitle, {color: '#FFF', fontSize: f.title}]}>
-                  {t('welcome.admin_btn', 'Admin Login / Signup')}
-                </Text>
-                <Text
-                  style={[
-                    styles.roleSub,
-                    {color: 'rgba(255,255,255,0.75)', fontSize: f.body},
-                  ]}>
-                  {t('welcome.admin_hint', 'Register workers, view attendance')}
+                  {t('welcome.worker_hint', 'Verify your details + face to punch in/out')}
                 </Text>
               </View>
               <Text style={[styles.arrow, {color: '#FFF', fontSize: f.titleLg}]}>›</Text>
@@ -167,6 +144,9 @@ export default function WelcomeScreen() {
         </View>
 
         <View style={styles.footer}>
+          <Text style={[styles.credit, {color: '#FFFFFF', fontSize: f.body}]}>
+            {t('welcome.credit', 'Developed by PramIQ')}
+          </Text>
           <Text style={[styles.footerText, {color: 'rgba(255,255,255,0.6)', fontSize: f.caption}]}>
             {t('welcome.footer', 'Offline-first • DPDPA-aware • Made in India')}
           </Text>
@@ -208,6 +188,16 @@ const styles = StyleSheet.create({
     fontSize: 22,
     letterSpacing: 1,
   },
+  logoCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: RADIUS.lg,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoImg: {width: 150, height: 96},
+  credit: {fontWeight: '800', letterSpacing: 0.5, textAlign: 'center', marginBottom: SPACING.xs},
   splashCenter: {alignItems: 'center', justifyContent: 'center'},
   title: {fontWeight: '800', textAlign: 'center'},
   subtitle: {marginTop: SPACING.xs, textAlign: 'center'},

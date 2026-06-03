@@ -1,4 +1,4 @@
-import React, {useCallback, useEffect} from 'react';
+import React, {useEffect, useState} from 'react';
 import {
   StyleSheet,
   Text,
@@ -9,7 +9,8 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import {useNavigation, useFocusEffect, CommonActions} from '@react-navigation/native';
+import {useNavigation, CommonActions} from '@react-navigation/native';
+import NetInfo from '@react-native-community/netinfo';
 import {useTranslation} from 'react-i18next';
 import {useThemeContext} from '../../theme/ThemeContext';
 import {COLORS, FONTS, SPACING, RADIUS} from '../../theme/aaaTheme';
@@ -17,7 +18,11 @@ import {useSession} from '../../auth/sessionStore';
 import {usePunchStatus} from '../../hooks/usePunchStatus';
 import {formatTimeOfDay, formatDate} from '../../utils/timeCalc';
 import SyncStatusBadge from '../../components/SyncStatusBadge';
-import {triggerPunchSync} from '../../../sync/punchSyncWorker';
+import {
+  triggerPunchSync,
+  subscribeUnsyncedCount,
+  getCurrentUnsyncedCount,
+} from '../../../sync/punchSyncWorker';
 
 export default function PunchScreen() {
   const {t} = useTranslation();
@@ -28,23 +33,28 @@ export default function PunchScreen() {
 
   const role = useSession(s => s.role);
   const worker = useSession(s => s.worker);
+  const token = useSession(s => s.token);
   const isExpired = useSession(s => s.isExpired);
   const logout = useSession(s => s.logout);
   const hydrated = useSession(s => s.hydrated);
   const status = usePunchStatus(worker?.id);
 
-  useFocusEffect(
-    useCallback(() => {
-      // attempt background sync on focus
-      triggerPunchSync().catch(() => {});
-    }, []),
-  );
+  const [syncing, setSyncing] = useState(false);
+  const [pending, setPending] = useState<number>(() => getCurrentUnsyncedCount());
+
+  // Track pending count for the manual Sync button. We intentionally do NOT
+  // auto-sync anywhere — the worker uploads explicitly by tapping "Sync Now"
+  // (and only when online). This just keeps the button label live.
+  useEffect(() => {
+    const unsub = subscribeUnsyncedCount(setPending);
+    return unsub;
+  }, []);
 
   // Guard: if the worker session disappears, expires, or the role changed,
   // kick back to Welcome rather than sitting on a stale "Loading..." view.
   useEffect(() => {
     if (!hydrated) return;
-    if (role !== 'worker' || !worker || isExpired()) {
+    if (role !== 'worker' || !worker || !token || isExpired()) {
       // logout is async; fire-and-forget — we're navigating away anyway and
       // the keychain wipe doesn't block the redirect.
       if (role !== null) logout().catch(() => {});
@@ -52,7 +62,7 @@ export default function PunchScreen() {
         CommonActions.reset({index: 0, routes: [{name: 'Welcome'}]}),
       );
     }
-  }, [hydrated, role, worker, isExpired, logout, navigation]);
+  }, [hydrated, role, worker, token, isExpired, logout, navigation]);
 
   if (!worker) {
     return (
@@ -101,6 +111,54 @@ export default function PunchScreen() {
     navigation.navigate('PunchCapture', {type: 'out'});
   };
 
+  // Manual sync — only uploads when the worker taps, and only if online.
+  const handleSync = async () => {
+    if (syncing) return;
+    const net = await NetInfo.fetch();
+    if (!net.isConnected) {
+      Alert.alert(
+        t('sync.no_net_title', 'No internet'),
+        t('sync.no_net', 'Connect to a network, then tap Sync again.'),
+      );
+      return;
+    }
+    setSyncing(true);
+    try {
+      const res = await triggerPunchSync();
+      if (res.authMissing) {
+        // Token lost/expired — force re-login rather than claim success.
+        await logout();
+        navigation.dispatch(
+          CommonActions.reset({index: 0, routes: [{name: 'Welcome'}]}),
+        );
+        return;
+      }
+      if (res.skipped) {
+        Alert.alert(t('sync.title', 'Sync'), t('sync.in_progress', 'A sync is already in progress…'));
+      } else if (res.synced > 0 && res.networkError) {
+        Alert.alert(
+          t('sync.synced_title', 'Synced'),
+          t('sync.partial', {count: res.synced, defaultValue: 'Partially synced — {{count}} events sent, some failed'}),
+        );
+      } else if (res.networkError || getCurrentUnsyncedCount() > 0) {
+        // Either a hard failure, or nothing actually drained — never claim success.
+        Alert.alert(
+          t('sync.failed_title', 'Sync failed'),
+          t('sync.error', 'Sync failed — check your network connection'),
+        );
+      } else {
+        Alert.alert(
+          t('sync.synced_title', 'Synced'),
+          res.synced > 0
+            ? t('sync.success', {count: res.synced, defaultValue: '{{count}} events synced successfully'})
+            : t('sync.up_to_date', 'All data synced'),
+        );
+      }
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   const isPunchIn = status.kind === 'idle';
   const isPunchOut = status.kind === 'punched_in';
   const isDayDone = status.kind === 'completed';
@@ -114,12 +172,16 @@ export default function PunchScreen() {
             <Text style={[styles.greeting, {color: c.textSecondary, fontSize: f.body}]}>
               {t('punch.hello', 'Hello')},
             </Text>
-            <Text style={[styles.workerName, {color: c.text, fontSize: f.title}]}>
+            <Text
+              style={[styles.workerName, {color: c.text, fontSize: f.title}]}
+              numberOfLines={1}>
               {worker.name}
             </Text>
-            <Text style={[styles.workerMeta, {color: c.textMuted, fontSize: f.caption}]}>
-              {worker.aadhar_masked}
-            </Text>
+            {worker.aadhar_masked && worker.aadhar_masked !== '—' ? (
+              <Text style={[styles.workerMeta, {color: c.textMuted, fontSize: f.caption}]}>
+                {worker.aadhar_masked}
+              </Text>
+            ) : null}
           </View>
           <View style={styles.headerRight}>
             <SyncStatusBadge />
@@ -203,7 +265,11 @@ export default function PunchScreen() {
             <Text style={[styles.bigBtnEmoji]}>
               {isDayDone ? '✓' : isPunchOut ? '🚪' : '📸'}
             </Text>
-            <Text style={[styles.bigBtnText, {color: '#FFF', fontSize: f.titleLg}]}>
+            <Text
+              style={[styles.bigBtnText, {color: isAAA ? '#000' : '#FFF', fontSize: f.titleLg}]}
+              numberOfLines={2}
+              adjustsFontSizeToFit
+              minimumFontScale={0.6}>
               {isDayDone
                 ? t('punch.day_complete', 'DAY COMPLETE')
                 : isPunchOut
@@ -211,7 +277,12 @@ export default function PunchScreen() {
                   : t('punch.punch_in', 'PUNCH IN')}
             </Text>
             {!isDayDone && (
-              <Text style={[styles.bigBtnSub, {color: 'rgba(255,255,255,0.85)', fontSize: f.body}]}>
+              <Text
+                style={[
+                  styles.bigBtnSub,
+                  {color: isAAA ? 'rgba(0,0,0,0.85)' : 'rgba(255,255,255,0.85)', fontSize: f.body},
+                ]}
+                numberOfLines={1}>
                 {t('punch.tap_to_verify', 'Tap to verify face')}
               </Text>
             )}
@@ -225,6 +296,28 @@ export default function PunchScreen() {
           <Text style={[styles.calendarLinkText, {color: c.primary, fontSize: f.body}]}>
             📅 {t('punch.view_calendar', 'View attendance history')}
           </Text>
+        </TouchableOpacity>
+
+        {/* Manual sync — uploads pending punches only when tapped (and online) */}
+        <TouchableOpacity
+          style={[
+            styles.syncBtn,
+            {borderColor: c.border, backgroundColor: c.surface},
+            syncing && {opacity: 0.6},
+          ]}
+          onPress={handleSync}
+          disabled={syncing}>
+          {syncing ? (
+            <ActivityIndicator color={c.primary} />
+          ) : (
+            <Text
+              style={[styles.syncBtnText, {color: c.primary, fontSize: f.body}]}
+              numberOfLines={1}>
+              {pending > 0
+                ? `⬆ ${t('sync.sync_now', 'Sync Now')} (${pending})`
+                : `✓ ${t('sync.all_synced', 'Synced')}`}
+            </Text>
+          )}
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
@@ -243,7 +336,7 @@ const styles = StyleSheet.create({
   workerName: {fontWeight: '800'},
   workerMeta: {marginTop: 2},
   headerRight: {alignItems: 'flex-end', gap: SPACING.sm},
-  logoutIcon: {padding: SPACING.xs},
+  logoutIcon: {padding: SPACING.sm, minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center'},
   date: {marginBottom: SPACING.lg},
   statusCard: {
     borderRadius: RADIUS.lg,
@@ -263,6 +356,7 @@ const styles = StyleSheet.create({
     borderRadius: 120,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: SPACING.xl,
     borderWidth: 4,
     shadowColor: '#000',
     shadowOpacity: 0.3,
@@ -272,8 +366,21 @@ const styles = StyleSheet.create({
     gap: SPACING.xs,
   },
   bigBtnEmoji: {fontSize: 64},
-  bigBtnText: {fontWeight: '900', letterSpacing: 1},
-  bigBtnSub: {marginTop: 4},
-  calendarLink: {alignItems: 'center', padding: SPACING.lg},
+  bigBtnText: {fontWeight: '900', letterSpacing: 1, textAlign: 'center'},
+  bigBtnSub: {marginTop: 4, textAlign: 'center'},
+  calendarLink: {alignSelf: 'stretch', alignItems: 'center', justifyContent: 'center', padding: SPACING.lg, minHeight: 44},
   calendarLinkText: {fontWeight: '700'},
+  syncBtn: {
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.xl,
+    borderRadius: RADIUS.pill,
+    borderWidth: 1.5,
+    minHeight: 48,
+    marginTop: SPACING.xs,
+  },
+  syncBtnText: {fontWeight: '700'},
 });

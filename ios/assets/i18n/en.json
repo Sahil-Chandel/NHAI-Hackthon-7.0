@@ -85,10 +85,11 @@
     "title": "NHAI Attendance",
     "subtitle": "Face-verified worker attendance",
     "worker_btn": "Login as Worker",
-    "worker_hint": "Use name + Aadhar to punch in/out",
+    "worker_hint": "Verify your details + face to punch in/out",
     "admin_btn": "Admin Login / Signup",
     "admin_hint": "Register workers, view attendance",
-    "footer": "Offline-first • DPDPA-aware • Made in India"
+    "footer": "Offline-first • DPDPA-aware • Made in India",
+    "credit": "Developed by PramIQ"
   },
   "admin_auth": {
     "title": "Admin Access",
@@ -292,5 +293,28 @@
     "days": "Days worked",
     "hours": "Total hours",
     "no_data": "No attendance recorded"
+  },
+  "worker_onboard": {
+    "title": "Worker Login",
+    "subtitle": "Enter your details to verify against the worker registry",
+    "first_label": "First Name",
+    "first_ph": "e.g. Rajesh",
+    "last_label": "Last Name",
+    "last_ph": "e.g. Kumar",
+    "mobile_label": "Mobile Number",
+    "mobile_ph": "10-digit number",
+    "email_label": "Email",
+    "email_ph": "you@example.com",
+    "btn": "Login & Continue",
+    "verified": "Verified from DataLake",
+    "register_hint": "One-time step: register your face so you can punch in/out.",
+    "register_btn": "Register Your Face",
+    "saving": "Saving your face securely...",
+    "err_mobile": "Enter a valid 10-digit mobile number",
+    "err_email": "Enter a valid email address",
+    "not_found": "Your details did not match the worker registry. Please check and try again.",
+    "failed": "Verification failed",
+    "reg_failed": "Could not save your face. Please try again.",
+    "capture_failed": "Face capture failed. Please try again."
   }
 }

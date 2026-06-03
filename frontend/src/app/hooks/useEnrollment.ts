@@ -32,12 +32,15 @@ export function useEnrollment() {
   const processingRef = useRef(false);
   const userIdRef = useRef('');
   const nameRef = useRef('');
+  const skipDupRef = useRef(false);
 
-  const startEnrollment = useCallback((id: string, userName: string) => {
+  const startEnrollment = useCallback(
+    (id: string, userName: string, skipDuplicateCheck = false) => {
     setUserId(id);
     setName(userName);
     userIdRef.current = id;
     nameRef.current = userName;
+    skipDupRef.current = skipDuplicateCheck;
     setStepIndex(0);
     stepIndexRef.current = 0;
     setStep('frontal');
@@ -83,7 +86,7 @@ export function useEnrollment() {
             }
           }
 
-          const result = enrollFace(userIdRef.current, nameRef.current, mean);
+          const result = enrollFace(userIdRef.current, nameRef.current, mean, skipDupRef.current);
           setEnrolledId(result.id);
           setStep('done');
         } catch (e: any) {

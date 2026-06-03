@@ -8,7 +8,11 @@ import type {EnrolledRole} from '../../ml/pipeline';
  * screen polls on focus and consumes either pending or error.
  */
 
-export type EnrollmentPurpose = 'admin_signup' | 'add_worker' | 'standalone';
+export type EnrollmentPurpose =
+  | 'admin_signup'
+  | 'add_worker'
+  | 'worker_onboard'
+  | 'standalone';
 
 export type EnrollmentErrorCode = 'duplicate_face' | 'capture_failed';
 

@@ -27,7 +27,6 @@ import {COLORS, FONTS, SPACING, RADIUS} from '../../theme/aaaTheme';
 import {useSession} from '../../auth/sessionStore';
 import {getCurrentLocation} from '../../services/locationService';
 import {insertPunchEvent} from '../../../storage/db/punchEvents.repo';
-import {triggerPunchSync} from '../../../sync/punchSyncWorker';
 import type {RootStackParamList} from '../../navigation/RootStack';
 import {initPipeline} from '../../../ml/pipeline';
 
@@ -51,7 +50,12 @@ export default function PunchCaptureScreen() {
   const [progress, setProgress] = useState(0);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const finishedRef = useRef(false);
-  const matchCountRef = useRef(0);
+  // Separate CONSECUTIVE counters: a frame that matches THIS worker advances
+  // matchHits (and resets missHits) and vice-versa. A shared counter would let
+  // stray frames of another enrolled identity pre-charge the gate (false accept)
+  // or a single stray mismatch trip a reject for a genuine worker.
+  const matchHitsRef = useRef(0);
+  const missHitsRef = useRef(0);
   // Tracks whether the screen has been unmounted so async tasks that finish
   // after the user pressed ✕ don't try to navigate the (now-popped) screen.
   const unmountedRef = useRef(false);
@@ -178,8 +182,9 @@ export default function PunchCaptureScreen() {
         return;
       }
 
-      // fire-and-forget sync (safe even if we unmount mid-call)
-      triggerPunchSync().catch(() => {});
+      // No auto-sync here — the event is saved locally (synced=0) and the
+      // worker uploads it explicitly via the "Sync Now" button on the home
+      // screen (only when online). Keeps sync fully worker-initiated.
 
       if (unmountedRef.current) return;
       const ts = Date.now();
@@ -207,21 +212,31 @@ export default function PunchCaptureScreen() {
     if (!pipelineResult) return;
 
     if (pipelineResult.stage === 'matched' && pipelineResult.match) {
-      // The session profile doesn't carry `face_template_id` (backend WorkerOut
-      // omits it), so we can't compare template ids directly. Lightweight check:
-      // the matched template's `name` must equal the logged-in worker's name
-      // (admin enrolled them with prefilledName=worker.name during AddWorker).
-      const matchedName = pipelineResult.match.name;
-      const nameMatches =
-        matchedName.trim().toLowerCase() === worker.name.trim().toLowerCase();
+      // Bind the matched template to THIS worker's enrolled identity by its
+      // `userId` (`worker-<uuid>`) — two workers can share a display name but
+      // never a registry uuid, so name-only matching would let same-named
+      // workers on a shared device punch as each other. Fall back to name only
+      // for legacy templates enrolled before the userId convention.
+      const m = pipelineResult.match;
+      const expectedUserId = `worker-${worker.id}`;
+      const identityMatches = m.userId
+        ? m.userId === expectedUserId
+        : m.name.trim().toLowerCase() === worker.name.trim().toLowerCase();
 
-      matchCountRef.current += 1;
+      if (identityMatches) {
+        matchHitsRef.current += 1;
+        missHitsRef.current = 0;
+      } else {
+        missHitsRef.current += 1;
+        matchHitsRef.current = 0;
+      }
 
-      if (nameMatches && matchCountRef.current >= 2) {
-        // Two consecutive frames matched — proceed
+      if (matchHitsRef.current >= 2) {
+        // Two CONSECUTIVE frames matched this worker — proceed
         finishedRef.current = true;
-        proceedWithPunch(pipelineResult.match.score);
-      } else if (!nameMatches && matchCountRef.current >= 5) {
+        proceedWithPunch(m.score);
+      } else if (missHitsRef.current >= 5) {
+        // Five consecutive frames matched someone else / didn't match — reject
         finishedRef.current = true;
         failPunch('face_mismatch');
       }

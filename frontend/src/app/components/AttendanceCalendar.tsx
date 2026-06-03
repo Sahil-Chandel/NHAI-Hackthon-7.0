@@ -110,7 +110,7 @@ function Legend({color, label, textColor}: {color: string; label: string; textCo
 
 const styles = StyleSheet.create({
   wrap: {gap: 12},
-  legend: {flexDirection: 'row', justifyContent: 'center', gap: 16, paddingTop: 8},
+  legend: {flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 16, paddingTop: 8},
   legendItem: {flexDirection: 'row', alignItems: 'center', gap: 6},
   dot: {width: 10, height: 10, borderRadius: 5},
   legendLabel: {fontSize: 12, fontWeight: '600'},

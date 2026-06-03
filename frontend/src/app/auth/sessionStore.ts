@@ -120,10 +120,25 @@ export const useSession = create<SessionState>()(
         // pull the JWT from the keychain and merge it in. Then flip the
         // `hydrated` flag so UI guards (WelcomeScreen redirect, etc.) fire.
         (async () => {
+          let t: string | null = null;
           try {
-            const t = await secureGet(TOKEN_KEYCHAIN_KEY);
-            if (t) useSession.setState({token: t});
+            t = await secureGet(TOKEN_KEYCHAIN_KEY);
           } catch {}
+          if (t) {
+            useSession.setState({token: t});
+          } else if (useSession.getState().role !== null) {
+            // Profile (role/expiry/worker) survived in AsyncStorage but the
+            // keychain JWT is gone (reinstall / keychain wipe / read error). A
+            // session without its token can't call the backend, so treat it as
+            // logged-out rather than a valid session that redirects to Home.
+            useSession.setState({
+              role: null,
+              token: null,
+              tokenExpiresAt: null,
+              admin: null,
+              worker: null,
+            });
+          }
           useSession.setState({hydrated: true});
         })();
       },

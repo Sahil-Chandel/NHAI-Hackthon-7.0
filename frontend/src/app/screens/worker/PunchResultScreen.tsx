@@ -7,6 +7,7 @@ import {COLORS, FONTS, SPACING, RADIUS} from '../../theme/aaaTheme';
 import GradientBackground from '../../components/GradientBackground';
 import GlassCard from '../../components/GlassCard';
 import {formatTimeOfDay} from '../../utils/timeCalc';
+import {useSession} from '../../auth/sessionStore';
 import type {RootStackParamList} from '../../navigation/RootStack';
 
 export default function PunchResultScreen() {
@@ -15,6 +16,7 @@ export default function PunchResultScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<RouteProp<RootStackParamList, 'PunchResult'>>();
   const {success, type, timestamp, reason, gpsAvailable} = route.params ?? {success: false, type: 'in'};
+  const workerName = useSession(s => s.worker?.name);
   const c = isAAA ? COLORS.aaa : COLORS.normal;
   const f = isAAA ? FONTS.aaa : FONTS.normal;
 
@@ -46,6 +48,14 @@ export default function PunchResultScreen() {
 
           <GlassCard intensity="high" style={styles.card}>
             <Text style={[styles.title, {fontSize: f.titleLg, color: '#FFF'}]}>{title}</Text>
+
+            {success && workerName && (
+              <Text
+                style={[styles.verified, {fontSize: f.body, color: '#FFF'}]}
+                numberOfLines={1}>
+                {t('punch_result.verified', '✓ Verified')} · {workerName}
+              </Text>
+            )}
 
             {success && timestamp && (
               <>
@@ -129,8 +139,9 @@ const styles = StyleSheet.create({
     gap: SPACING.lg,
   },
   bigEmoji: {fontSize: 120},
-  card: {padding: SPACING.xl, alignItems: 'center', gap: SPACING.sm, minWidth: '90%'},
+  card: {padding: SPACING.xl, alignItems: 'center', gap: SPACING.sm, minWidth: '90%', maxWidth: 500},
   title: {fontWeight: '800', textAlign: 'center'},
+  verified: {fontWeight: '700', textAlign: 'center', marginTop: SPACING.xs},
   time: {fontWeight: '900', marginTop: SPACING.sm},
   subtle: {textAlign: 'center'},
   actions: {flexDirection: 'row', gap: SPACING.md, marginTop: SPACING.lg},

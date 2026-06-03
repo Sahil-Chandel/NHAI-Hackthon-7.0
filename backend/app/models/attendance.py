@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import String, Float, DateTime, Boolean, Text
+from sqlalchemy import String, Float, DateTime, Boolean, Text, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from pydantic import BaseModel, Field
 
@@ -23,7 +23,7 @@ class AttendanceRecord(Base):
     latency_ms: Mapped[float] = mapped_column(Float, nullable=True)
     gps_lat: Mapped[float] = mapped_column(Float, nullable=True)
     gps_lon: Mapped[float] = mapped_column(Float, nullable=True)
-    synced_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default="now()")
+    synced_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=text("now()"))
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 

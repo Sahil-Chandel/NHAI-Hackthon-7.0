@@ -72,7 +72,20 @@ class _EnrollmentScreenState extends State<EnrollmentScreen> {
   @override
   void initState() {
     super.initState();
+    // Prefill from caller (e.g. worker onboarding passes worker-<uuid> + name).
+    if (widget.prefilledUserId != null) _idController.text = widget.prefilledUserId!;
+    if (widget.prefilledName != null) _nameController.text = widget.prefilledName!;
     _checkCameraPermission();
+    // Non-standalone purposes (worker_onboard / admin) skip the manual form and
+    // jump straight into face capture.
+    final p = widget.purpose;
+    if (p != null && p != 'standalone' && (widget.prefilledUserId ?? '').isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        setState(() => _currentStep = EnrollStep.capture);
+        _initCamera();
+      });
+    }
   }
 
   @override
@@ -287,6 +300,13 @@ class _EnrollmentScreenState extends State<EnrollmentScreen> {
         setState(() => _enrollmentSuccess = true);
         final loc = AppLocalizations.of(context);
         _tts.speak(loc?.t('enroll.success') ?? 'Enrollment successful!');
+        // Worker onboarding: auto-return so WorkerOnboardScreen can pick up the
+        // saved template, register-face on the backend, and continue to Punch.
+        if (widget.purpose == 'worker_onboard') {
+          Future.delayed(const Duration(milliseconds: 900), () {
+            if (mounted) context.pop();
+          });
+        }
       }
     } catch (e) {
       if (mounted) {

@@ -64,6 +64,12 @@ class Settings(BaseSettings):
     MAX_PUNCH_BATCH_EVENTS: int = 100
     MAX_DATE_RANGE_DAYS: int = 366  # 1 year max for date_from..date_to queries
 
+    # --- Datalake 3.0 external registry (SQLite) ---
+    # Worker self-onboarding matches against this pre-existing registry of
+    # known workers (uuid + first/last/mobile/email). Empty == resolve the
+    # repo-root `data_lake_3.db` at call time (see app/utils/data_lake.py).
+    DATA_LAKE_PATH: str = ""
+
     # --- Observability ---
     # Token required to read /metrics. If unset, /metrics returns 404.
     METRICS_BEARER_TOKEN: str = ""
