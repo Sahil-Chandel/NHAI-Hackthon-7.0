@@ -24,7 +24,21 @@
     "quality_low": "Low quality — move to better lighting",
     "no_face": "No face detected — position in frame",
     "step": "Step {{current}} of {{total}}",
-    "error_fields": "Please enter both ID and name."
+    "error_fields": "Please enter both ID and name.",
+    "engine_unavailable": "Face engine not ready. Please update the app and try again.",
+    "auth": {
+      "title": "Authentication",
+      "live": "LIVE",
+      "steps": "STEPS",
+      "step1": "Face detected & aligned",
+      "step2": "Passive liveness passed",
+      "step3": "Active challenge…",
+      "step4": "Recognition",
+      "done_btn": "Done",
+      "recognizing": "Recognizing…",
+      "hint": "Complete recognition to enable Done",
+      "ready": "Recognition complete"
+    }
   },
   "verify": {
     "title": "Verify Identity",
@@ -232,6 +246,33 @@
     "dup_face": "This face is already registered for another worker.",
     "capture_failed": "Face capture failed. Please try again."
   },
+  "onboard_result": {
+    "title": "Result",
+    "authenticated": "Authenticated",
+    "id": "ID",
+    "details": "CONFIDENCE DETAILS",
+    "match_score": "Match score",
+    "liveness": "Liveness",
+    "passed": "Passed",
+    "failed": "Failed",
+    "time_taken": "Time taken",
+    "sync": "Profile sync",
+    "synced": "Synced",
+    "queued": "Queued",
+    "done": "Done"
+  },
+  "worker_home": {
+    "title": "Datalake 3.0",
+    "online": "Online",
+    "offline": "Offline",
+    "pending": "Pending sync",
+    "records_queued": "records queued",
+    "punch_in": "Punch In",
+    "punch_out": "Punch Out",
+    "tab_home": "Home",
+    "tab_calendar": "Calendar",
+    "tab_sync": "Sync"
+  },
   "punch": {
     "hello": "Hello",
     "today_status": "Today's status",
@@ -267,8 +308,23 @@
     "no_face": "No face detected",
     "storage_error": "Failed to save punch event",
     "spoof": "Spoof attempt detected",
+    "engine_unavailable": "Face engine not ready. Please update the app and try again.",
     "success_in": "Punched in successfully",
     "success_out": "Punched out successfully"
+  },
+  "liveness_check": {
+    "title": "Liveness Check",
+    "blink_twice": "Please blink twice",
+    "look_camera": "Look directly at the camera",
+    "hold_still": "Hold still",
+    "verifying": "Verifying your identity…",
+    "blink_detected": "Blink detected!",
+    "blink_progress": "Blink {{n}} of {{total}}",
+    "position_face": "Position your face in the oval",
+    "time_remaining": "Time remaining",
+    "anti_spoofing": "Anti-spoofing",
+    "attempt_label": "Attempt",
+    "of": "of"
   },
   "punch_result": {
     "success_in": "Punched In!",
@@ -302,6 +358,20 @@
     "partial": "Partially synced — {{count}} events sent, some failed",
     "empty": "No pending data to sync",
     "error": "Sync failed — check your network connection"
+  },
+  "sync_status": {
+    "title": "Sync Status",
+    "syncing_now": "Syncing now",
+    "uploaded": "{{done}} of {{total}} records uploaded",
+    "all_synced": "All records synced",
+    "ready": "{{count}} records ready to sync",
+    "log": "SYNC LOG",
+    "total_pending": "Total pending",
+    "purged": "Purged locally",
+    "failed": "Failed",
+    "last_sync": "Last sync",
+    "never": "Never (first time)",
+    "force": "Force sync"
   },
   "calendar": {
     "legend_full": "Full day",

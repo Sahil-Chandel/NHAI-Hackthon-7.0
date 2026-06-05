@@ -1,9 +1,16 @@
 import type {TensorflowModel} from 'react-native-fast-tflite';
 
+// `source` tells the pipeline which engine produced the vector. Identity
+// verification is only trustworthy on a real 'edgeface' embedding; the
+// 'mlkit_fallback' landmark signature is non-discriminative (scores ~0.99
+// between different people) and must be refused for verification, not matched.
+export type EmbeddingSource = 'edgeface' | 'mlkit_fallback';
+
 export type EmbeddingResult = {
   embedding: number[];
   magnitude: number;
   latencyMs: number;
+  source?: EmbeddingSource;
 };
 
 export function extractEmbedding(

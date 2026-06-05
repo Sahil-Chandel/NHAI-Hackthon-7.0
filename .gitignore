@@ -31,6 +31,15 @@ backend/.env
 !frontend/assets/keys/model_signing_pubkey.pem
 .keys/
 
+# Datasets with PII — never commit (worker registry datalake)
+data_lake_3.db
+
+# Local demo/build artifacts (kept out of the repo; hosted via release/gofile)
+/NHAI_Hackathon_7_Proposal.zip
+/demo.mp4
+/demo_web.mp4
+*.bak.pptx
+
 # Firebase
 google-services.json
 GoogleService-Info.plist

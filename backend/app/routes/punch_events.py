@@ -1,5 +1,9 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from collections import defaultdict
+
+# India Standard Time — attendance days/months must be bucketed in IST, not UTC,
+# or punches in the first ~5.5h of an IST day fall into the previous UTC day.
+IST = timezone(timedelta(hours=5, minutes=30))
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy import select
@@ -176,11 +180,11 @@ async def attendance_summary(
         raise HTTPException(status_code=403, detail="Role not allowed")
 
     year, mo = map(int, month.split("-"))
-    start = datetime(year, mo, 1)
+    start = datetime(year, mo, 1, tzinfo=IST)
     if mo == 12:
-        end = datetime(year + 1, 1, 1)
+        end = datetime(year + 1, 1, 1, tzinfo=IST)
     else:
-        end = datetime(year, mo + 1, 1)
+        end = datetime(year, mo + 1, 1, tzinfo=IST)
 
     rows = (
         await db.execute(
@@ -196,7 +200,11 @@ async def attendance_summary(
 
     per_day: dict[str, list[PunchEvent]] = defaultdict(list)
     for r in rows:
-        date_key = r.timestamp.date().isoformat()
+        # Bucket by the IST calendar date (timestamps are stored UTC/aware).
+        ts = r.timestamp
+        if ts.tzinfo is None:
+            ts = ts.replace(tzinfo=timezone.utc)
+        date_key = ts.astimezone(IST).date().isoformat()
         per_day[date_key].append(r)
 
     out: list[AttendanceSummary] = []

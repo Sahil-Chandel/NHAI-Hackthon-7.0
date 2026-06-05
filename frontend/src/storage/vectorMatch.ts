@@ -62,3 +62,21 @@ export function findBestMatch(
 
   return null;
 }
+
+// Best template regardless of threshold — telemetry/diagnostics only (lets the
+// punch screen show the live cosine score even when it's BELOW the accept gate,
+// so we can read genuine-vs-impostor separation off the device).
+export function bestMatch(
+  embedding: number[],
+): {score: number; name: string; userId: string} | null {
+  let bestScore = -1;
+  let best: Template | null = null;
+  for (const tmpl of templateCache) {
+    const score = cosineSimilarity(embedding, tmpl.embedding);
+    if (score > bestScore) {
+      bestScore = score;
+      best = tmpl;
+    }
+  }
+  return best ? {score: bestScore, name: best.name, userId: best.userId} : null;
+}

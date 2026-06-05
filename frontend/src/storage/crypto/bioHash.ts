@@ -85,10 +85,28 @@ function generateProjectionMatrix(salt: string): number[][] {
 
 export function generateSalt(): string {
   const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-  let salt = '';
-  for (let i = 0; i < 32; i++) {
-    salt += chars[Math.floor(Math.random() * chars.length)];
+  const len = 32;
+  // The salt seeds the cancellable-biometric projection — it must be drawn from
+  // a CSPRNG, not Math.random (predictable, weakens the cancellability). Mirror
+  // dbKey.ts: prefer libsodium, then Web Crypto, with a loud Math.random
+  // fallback so enrollment never hard-fails if the native module isn't linked.
+  const bytes = new Uint8Array(len);
+  let filled = false;
+  try {
+    const libsodium = require('react-native-libsodium');
+    bytes.set(libsodium.randombytes_buf(len) as Uint8Array);
+    filled = true;
+  } catch {}
+  if (!filled && typeof (globalThis as any).crypto?.getRandomValues === 'function') {
+    (globalThis as any).crypto.getRandomValues(bytes);
+    filled = true;
   }
+  if (!filled) {
+    console.warn('[bioHash] CSPRNG unavailable — falling back to Math.random for salt');
+    for (let i = 0; i < len; i++) bytes[i] = Math.floor(Math.random() * 256);
+  }
+  let salt = '';
+  for (let i = 0; i < len; i++) salt += chars[bytes[i] % chars.length];
   return salt;
 }
 

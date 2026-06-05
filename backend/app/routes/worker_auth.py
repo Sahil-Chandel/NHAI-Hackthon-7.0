@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.concurrency import run_in_threadpool
-from sqlalchemy import select, func, update
+from sqlalchemy import select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -70,13 +70,15 @@ async def worker_login(
     if not normalized_name:
         raise HTTPException(status_code=401, detail="Invalid name or Aadhar number")
 
-    # Narrow at DB layer: active workers whose lowercased name matches.
+    # Load active workers and match names in Python via _norm_name. We do NOT
+    # pre-filter on func.lower(Worker.name) == normalized_name at the DB layer:
+    # _norm_name also collapses internal whitespace ("Ramesh  Kumar" ->
+    # "ramesh kumar"), which a plain lower() does not, so a stored multi-space
+    # name would be wrongly excluded and the worker locked out. At the stated
+    # <1k-worker scale, the in-Python scan below is fine.
     candidates = (
         await db.execute(
-            select(Worker).where(
-                Worker.active.is_(True),
-                func.lower(Worker.name) == normalized_name,
-            )
+            select(Worker).where(Worker.active.is_(True))
         )
     ).scalars().all()
 

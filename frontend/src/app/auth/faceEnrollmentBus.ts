@@ -16,6 +16,9 @@ export type EnrollmentPurpose =
 
 export type EnrollmentErrorCode = 'duplicate_face' | 'capture_failed';
 
+/** Optional capture metrics surfaced to the post-onboarding result screen. */
+export type EnrollMeta = {confidence?: number; elapsedMs?: number};
+
 export type EnrollmentError = {
   purpose: EnrollmentPurpose;
   code: EnrollmentErrorCode;
@@ -31,6 +34,7 @@ type Pending = {
   templateId: string;
   userId: string;
   name: string;
+  meta?: EnrollMeta;
 };
 
 type State = {
@@ -41,6 +45,7 @@ type State = {
     templateId: string,
     userId: string,
     name: string,
+    meta?: EnrollMeta,
   ) => void;
   setError: (err: EnrollmentError) => void;
   /**
@@ -50,7 +55,7 @@ type State = {
   consume: (
     purpose: EnrollmentPurpose,
   ) =>
-    | {kind: 'success'; templateId: string; userId: string; name: string}
+    | {kind: 'success'; templateId: string; userId: string; name: string; meta?: EnrollMeta}
     | {kind: 'error'; error: EnrollmentError}
     | null;
   clear: () => void;
@@ -59,8 +64,8 @@ type State = {
 export const useFaceEnrollmentBus = create<State>((set, get) => ({
   pending: null,
   error: null,
-  setPending: (purpose, templateId, userId, name) =>
-    set({pending: {purpose, templateId, userId, name}, error: null}),
+  setPending: (purpose, templateId, userId, name, meta) =>
+    set({pending: {purpose, templateId, userId, name, meta}, error: null}),
   setError: err => set({error: err, pending: null}),
   consume: purpose => {
     const {pending, error} = get();
@@ -75,6 +80,7 @@ export const useFaceEnrollmentBus = create<State>((set, get) => ({
         templateId: pending.templateId,
         userId: pending.userId,
         name: pending.name,
+        meta: pending.meta,
       };
     }
     return null;

@@ -224,7 +224,7 @@ export default function VerificationScreen() {
           bio_hash_verified: pipelineResult.bioHashVerified,
           bio_hash_distance: pipelineResult.bioHashDistance,
         });
-        recordScore(match.userId, match.score);
+        recordScore(match.userId, match.score).catch(() => {});
       }
     }
   }, [pipelineResult?.stage, pipelineResult?.match?.name, speak, t, verifyPhase, spoofResult]);

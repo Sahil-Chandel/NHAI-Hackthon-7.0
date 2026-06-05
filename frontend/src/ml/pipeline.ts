@@ -1,9 +1,9 @@
 import {THRESHOLDS} from './thresholds';
 import {checkQuality} from './processors/qualityGate';
-import {findBestMatch, setTemplates, getTemplateCount} from '../storage/vectorMatch';
+import {findBestMatch, bestMatch, setTemplates, getTemplateCount} from '../storage/vectorMatch';
 import type {MatchResult, Template} from '../storage/vectorMatch';
 import {getAllTemplates, getBioHashData} from '../storage/db/templates.repo';
-import {insertTemplate} from '../storage/db/templates.repo';
+import {insertTemplate, deleteTemplatesForUser} from '../storage/db/templates.repo';
 import {bioHash, bioHashMatch, generateSalt} from '../storage/crypto/bioHash';
 import {getThresholdSync} from './processors/adaptiveThreshold';
 
@@ -14,6 +14,10 @@ export type PipelineResult = {
   embeddingLatencyMs?: number;
   bioHashVerified?: boolean;
   bioHashDistance?: number;
+  // Diagnostics: best template cosine + name REGARDLESS of the accept gate, so
+  // the punch screen can show live genuine-vs-impostor separation.
+  bestScore?: number;
+  bestName?: string;
 };
 
 let initialized = false;
@@ -35,7 +39,22 @@ export function processEmbedding(
   embedding: number[],
   magnitude: number,
   latencyMs: number,
+  source: 'edgeface' | 'mlkit_fallback' = 'edgeface',
 ): PipelineResult {
+  // FAIL CLOSED: identity is only trustworthy on a REAL EdgeFace embedding.
+  // When the tflite model isn't loaded/usable, the camera screens fall back to
+  // the ML-Kit landmark signature, which scores ~0.99 cosine between DIFFERENT
+  // people — verifying on it would accept anyone (the reported punch-out bug).
+  // Refuse to match instead, with a distinct reason so the worker is told the
+  // engine isn't ready (not that their face mismatched).
+  if (source !== 'edgeface') {
+    return {
+      stage: 'low_quality',
+      quality: {magnitude, passed: false, reason: 'face_engine_unavailable'},
+      embeddingLatencyMs: latencyMs,
+    };
+  }
+
   const quality = checkQuality(magnitude);
   if (!quality.passed) {
     return {
@@ -53,13 +72,19 @@ export function processEmbedding(
     };
   }
 
+  const top = bestMatch(embedding); // diagnostics: best score regardless of gate
   const match = findBestMatch(embedding, THRESHOLDS.MATCH_COSINE, getThresholdSync);
   if (match) {
-    // Dual verification — also confirm via BioHash (ISO/IEC 24745)
-    // Cosine identifies; BioHash provides cancellable cryptographic confirmation.
-    const bh = getBioHashData(match.id);
-    let bioHashVerified = false;
+    // BioHash (ISO/IEC 24745) is recorded for tamper / cancellability TELEMETRY
+    // only — it is a SimHash of the SAME embedding, so its Hamming distance
+    // mirrors the cosine decision and gives no independent impostor rejection.
+    // It therefore must NOT downgrade a cosine match (that only risked falsely
+    // rejecting a genuine borderline worker). Real impostor rejection comes
+    // from the EdgeFace cosine gate + the consecutive-frame check in
+    // PunchCaptureScreen.
+    let bioHashVerified = true;
     let bioHashDistance: number | undefined;
+    const bh = getBioHashData(match.id);
     if (bh) {
       const result = bioHashMatch(
         embedding,
@@ -69,18 +94,17 @@ export function processEmbedding(
       );
       bioHashVerified = result.match;
       bioHashDistance = result.normalizedDistance;
-    } else {
-      // Legacy template without BioHash data — accept cosine-only match
-      bioHashVerified = true;
     }
 
     return {
-      stage: bioHashVerified ? 'matched' : 'no_match',
-      match: bioHashVerified ? match : undefined,
+      stage: 'matched',
+      match,
       quality,
       embeddingLatencyMs: latencyMs,
       bioHashVerified,
       bioHashDistance,
+      bestScore: top?.score,
+      bestName: top?.name,
     };
   }
 
@@ -88,6 +112,8 @@ export function processEmbedding(
     stage: 'no_match',
     quality,
     embeddingLatencyMs: latencyMs,
+    bestScore: top?.score,
+    bestName: top?.name,
   };
 }
 
@@ -149,6 +175,9 @@ export function enrollFace(
   const salt = generateSalt();
   const hash = bioHash(embedding, salt);
 
+  // One current template per user_id: clear any prior rows so re-onboarding
+  // (new device / retry) replaces rather than accumulates stale embeddings.
+  deleteTemplatesForUser(userId);
   const id = insertTemplate(userId, name, embedding, hash, salt);
   reloadTemplates();
 

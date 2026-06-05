@@ -3,6 +3,9 @@ import os
 os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///test.db"
 os.environ["JWT_SECRET"] = "test-secret"
 os.environ["DEVICE_SHARED_SECRET"] = "test-device-secret"
+# The legacy device-token endpoint is disabled (410) by default for security;
+# enable it under test so the /auth/token logic is still exercised.
+os.environ["DEVICE_TOKEN_ENABLED"] = "true"
 
 import pytest
 import pytest_asyncio

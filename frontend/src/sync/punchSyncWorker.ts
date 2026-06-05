@@ -93,12 +93,19 @@ export async function triggerPunchSync(maxBatches = 5): Promise<PunchSyncResult>
         // server "rejected" means it already existed → also safe to mark synced
         const handled = new Set([...resp.accepted, ...resp.rejected]);
         const ids = rows.filter(r => handled.has(r.id)).map(r => r.id);
-        if (ids.length > 0) markSynced(ids);
+        if (ids.length > 0) {
+          markSynced(ids);
+          broadcast(); // update the live unsynced count per batch (progress UI)
+        }
         totalSynced += resp.accepted.length;
         const stillUnsynced = rows.filter(r => !handled.has(r.id));
         if (stillUnsynced.length > 0) {
           markSyncFailed(stillUnsynced.map(r => r.id), 'partial_ack');
           totalFailed += stillUnsynced.length;
+          // No forward progress on these rows — stop so we don't re-fetch and
+          // re-upload the same events (burning their retry budget) up to
+          // maxBatches times within a single sync call.
+          break;
         }
       } catch (e: any) {
         networkError = true;

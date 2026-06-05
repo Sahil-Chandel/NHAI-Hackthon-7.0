@@ -20,7 +20,7 @@ import {workerVerify, registerWorkerFace} from '../../../sync/adminApi';
 import type {WorkerTokenResponse} from '../../../sync/adminApi';
 import {useSession} from '../../auth/sessionStore';
 import {ApiError} from '../../../sync/httpClient';
-import {useFaceEnrollmentBus} from '../../auth/faceEnrollmentBus';
+import {useFaceEnrollmentBus, type EnrollMeta} from '../../auth/faceEnrollmentBus';
 import {getTemplatesByUser} from '../../../storage/db/templates.repo';
 
 type Step = 'form' | 'verified' | 'registering';
@@ -129,7 +129,7 @@ export default function WorkerOnboardScreen() {
 
   // ---- Step 3: on return from Enrollment, persist the face + session ----
   const finishOnboarding = useCallback(
-    async (templateId: string, userId: string) => {
+    async (templateId: string, userId: string, meta?: EnrollMeta) => {
       const ob = onboardCtx;
       if (!ob || processingRef.current) return;
       processingRef.current = true;
@@ -162,7 +162,24 @@ export default function WorkerOnboardScreen() {
         // never reach Punch.
         await loginAsWorker(ob.token, ob.expiresIn, ob.worker);
         onboardCtx = null; // onboarding complete — clear the resume context
-        navigation.reset({index: 0, routes: [{name: 'WorkerHome'}]});
+        // Show the authenticated result (with real capture metrics) before
+        // dropping the worker on the home screen.
+        navigation.reset({
+          index: 0,
+          routes: [
+            {
+              name: 'OnboardResult',
+              params: {
+                name: ob.worker.name,
+                workerId: String(ob.worker.id),
+                matchScore: meta?.confidence,
+                elapsedMs: meta?.elapsedMs,
+                livenessPassed: true,
+                synced: true,
+              },
+            },
+          ],
+        });
       } catch (e: any) {
         const msg =
           e instanceof ApiError
@@ -184,7 +201,7 @@ export default function WorkerOnboardScreen() {
       const result = consumeFace('worker_onboard');
       if (!result) return;
       if (result.kind === 'success') {
-        finishOnboarding(result.templateId, result.userId);
+        finishOnboarding(result.templateId, result.userId, result.meta);
       } else {
         const msg =
           result.error.code === 'duplicate_face'

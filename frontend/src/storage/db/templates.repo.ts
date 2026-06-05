@@ -71,6 +71,17 @@ export function deleteTemplate(id: string): void {
 }
 
 /**
+ * Remove every template for a user_id. Called before (re)enrolling so a worker
+ * who re-onboards (new device, retry after a transient error) ends up with one
+ * current template instead of accumulating stale embeddings.
+ */
+export function deleteTemplatesForUser(userId: string): number {
+  const db = getDb();
+  const result = db.execute('DELETE FROM templates WHERE user_id = ?', [userId]);
+  return (result as any)?.rowsAffected ?? 0;
+}
+
+/**
  * Wipe ALL templates whose user_id matches the given prefix. Used when an
  * admin deactivates a worker (`workers-` prefix) so that worker's biometric
  * embedding doesn't linger on the device — privacy + DPDPA obligation.

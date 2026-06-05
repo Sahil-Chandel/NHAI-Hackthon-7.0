@@ -37,8 +37,11 @@ export async function recordScore(userId: string, cosineScore: number): Promise<
     const mean = data.scores.reduce((a, b) => a + b, 0) / n;
     const variance = data.scores.reduce((a, b) => a + (b - mean) ** 2, 0) / n;
     const std = Math.sqrt(variance);
+    // Floor at the global accept threshold so a user's adaptive gate can only
+    // TIGHTEN above MATCH_COSINE — never drift below it (which would loosen the
+    // gate toward MATCH_REJECT and start admitting impostors).
     data.threshold = Math.max(
-      THRESHOLDS.MATCH_REJECT,
+      THRESHOLDS.MATCH_COSINE,
       mean - THRESHOLDS.ADAPTIVE_SIGMA_FACTOR * std,
     );
   }

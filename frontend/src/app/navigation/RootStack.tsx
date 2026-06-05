@@ -20,6 +20,8 @@ import WorkerOnboardScreen from '../screens/worker/WorkerOnboardScreen';
 import PunchScreen from '../screens/worker/PunchScreen';
 import PunchCaptureScreen from '../screens/worker/PunchCaptureScreen';
 import PunchResultScreen from '../screens/worker/PunchResultScreen';
+import OnboardResultScreen from '../screens/worker/OnboardResultScreen';
+import SyncStatusScreen from '../screens/worker/SyncStatusScreen';
 import WorkerCalendarScreen from '../screens/worker/WorkerCalendarScreen';
 
 import {useThemeContext} from '../theme/ThemeContext';
@@ -54,12 +56,21 @@ export type RootStackParamList = {
   WorkerLogin: undefined;
   WorkerHome: undefined;
   PunchCapture: {type: 'in' | 'out'};
+  SyncStatus: undefined;
   PunchResult: {
     success: boolean;
     type: 'in' | 'out';
     timestamp?: number;
     reason?: string;
     gpsAvailable?: boolean;
+  };
+  OnboardResult: {
+    name: string;
+    workerId: string;
+    matchScore?: number;
+    elapsedMs?: number;
+    livenessPassed?: boolean;
+    synced?: boolean;
   };
   WorkerCalendar: undefined;
 };
@@ -109,6 +120,12 @@ export default function RootStack() {
         component={PunchResultScreen}
         options={{presentation: 'fullScreenModal', animation: 'fade'}}
       />
+      <Stack.Screen
+        name="OnboardResult"
+        component={OnboardResultScreen}
+        options={{presentation: 'fullScreenModal', animation: 'fade', gestureEnabled: false}}
+      />
+      <Stack.Screen name="SyncStatus" component={SyncStatusScreen} />
       <Stack.Screen name="WorkerCalendar" component={WorkerCalendarScreen} />
 
       {/* Legacy / shared (used by Admin signup + Add worker for face capture) */}

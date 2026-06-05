@@ -19,7 +19,7 @@ from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.jwt import verify_token
+from app.auth.jwt import verify_token, require_role
 from app.auth.play_integrity import require_device_integrity
 from app.config import get_settings
 from app.db.session import get_db
@@ -98,9 +98,10 @@ async def query_attendance(
     date_from: datetime | None = Query(None),
     date_to: datetime | None = Query(None),
     limit: int = Query(100, le=1000),
-    _device_id: str = Depends(verify_token),
+    auth: tuple[str, str] = Depends(require_role("admin", "worker", "device")),
     db: AsyncSession = Depends(get_db),
 ):
+    sub, role = auth
     settings = get_settings()
     if date_from and date_to:
         if (date_to - date_from) > timedelta(days=settings.MAX_DATE_RANGE_DAYS):
@@ -111,10 +112,19 @@ async def query_attendance(
 
     stmt = select(AttendanceRecord).order_by(AttendanceRecord.timestamp.desc()).limit(limit)
 
-    if user_id:
-        stmt = stmt.where(AttendanceRecord.user_id == user_id)
-    if device_id_filter:
-        stmt = stmt.where(AttendanceRecord.device_id == device_id_filter)
+    # IDOR fix: only admins may read arbitrary identities. A worker is forced to
+    # its own user_id and a (legacy) device token to its own device_id — the
+    # client-supplied user_id/device_id filters are ignored for non-admins.
+    if role == "admin":
+        if user_id:
+            stmt = stmt.where(AttendanceRecord.user_id == user_id)
+        if device_id_filter:
+            stmt = stmt.where(AttendanceRecord.device_id == device_id_filter)
+    elif role == "worker":
+        stmt = stmt.where(AttendanceRecord.user_id == sub)
+    else:  # device
+        stmt = stmt.where(AttendanceRecord.device_id == sub)
+
     if date_from:
         stmt = stmt.where(AttendanceRecord.timestamp >= date_from)
     if date_to:

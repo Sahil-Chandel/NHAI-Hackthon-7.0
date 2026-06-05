@@ -16,6 +16,10 @@ export function useFaceAuth() {
 
   const [hasFace, setHasFace] = useState(false);
   const latestEmbeddingRef = useRef<number[] | null>(null);
+  // Engine that produced the latest embedding. Lets the enrollment screen
+  // refuse to register a template built from the non-discriminative ML-Kit
+  // fallback signature (which would match everyone).
+  const latestSourceRef = useRef<'edgeface' | 'mlkit_fallback' | null>(null);
 
   const init = useCallback(() => {
     try {
@@ -36,18 +40,22 @@ export function useFaceAuth() {
 
       if (embResult && det) {
         latestEmbeddingRef.current = embResult.embedding;
+        latestSourceRef.current = embResult.source ?? 'edgeface';
         setHasFace(true);
         const result = processEmbedding(
           embResult.embedding,
           embResult.magnitude,
           embResult.latencyMs,
+          embResult.source ?? 'edgeface',
         );
         setPipelineResult(result);
       } else if (det) {
         latestEmbeddingRef.current = null;
+        latestSourceRef.current = null;
         setHasFace(false);
       } else {
         latestEmbeddingRef.current = null;
+        latestSourceRef.current = null;
         setHasFace(false);
         setPipelineResult({stage: 'no_face'});
       }
@@ -68,6 +76,7 @@ export function useFaceAuth() {
     templateCount,
     hasFace,
     latestEmbeddingRef,
+    latestSourceRef,
     init,
     onFrameResult,
     refreshTemplates,

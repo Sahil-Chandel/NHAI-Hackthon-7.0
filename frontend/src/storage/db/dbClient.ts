@@ -5,24 +5,21 @@ let dbReady = false;
 
 export function getDb(): any {
   if (!dbReady) {
+    // Never open the DB unencrypted — biometric templates must always be at
+    // rest under SQLCipher. The key is awaited in App.tsx before the UI mounts,
+    // so by the time a screen calls getDb() the cached key is ready. If a call
+    // somehow races ahead of the key, throw (callers already guard with
+    // try/catch) rather than silently caching a plaintext handle for the whole
+    // session; a later call after the key resolves opens correctly + encrypted.
+    const key = getCachedDbKey();
+    if (!key) {
+      throw new Error(
+        '[dbClient] DB key not ready — getOrCreateDbKey() must resolve before getDb()',
+      );
+    }
     try {
       const {open} = require('react-native-quick-sqlite');
-      // Pass the SQLCipher master key if the secure module produced one.
-      // First-call ordering: App.tsx awaits `getOrCreateDbKey()` before the
-      // first ML pipeline init so by the time getDb() runs, the cached key
-      // is ready. If for some reason it's not, we open unencrypted and warn
-      // — better that than the app refusing to boot for a worker mid-shift.
-      const key = getCachedDbKey();
-      const openOpts: any = {name: 'nhai_face_auth.db'};
-      if (key) {
-        openOpts.key = key;
-      } else {
-        console.warn(
-          '[dbClient] opening SQLite WITHOUT encryption key — ' +
-            'getOrCreateDbKey() was never awaited',
-        );
-      }
-      db = open(openOpts);
+      db = open({name: 'nhai_face_auth.db', key});
       db.execute(`
         CREATE TABLE IF NOT EXISTS templates(
           id TEXT PRIMARY KEY,

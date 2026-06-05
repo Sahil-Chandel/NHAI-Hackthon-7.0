@@ -43,23 +43,29 @@ export default function AdminWorkerCalendarScreen() {
   const [month, setMonth] = useState<string>(currentMonthString);
 
   const load = useCallback(
-    async (m: string) => {
+    async (m: string, isAlive: () => boolean = () => true) => {
       setLoading(true);
       setError(null);
       try {
         const data = await fetchAttendanceSummary(workerId, m);
-        setSummary(data);
+        if (isAlive()) setSummary(data);
       } catch (e: any) {
-        setError(e?.message || 'Failed to load');
+        if (isAlive()) setError(e?.message || 'Failed to load');
       } finally {
-        setLoading(false);
+        if (isAlive()) setLoading(false);
       }
     },
     [workerId],
   );
 
+  // Guard against setState after unmount — this screen is a modal that can be
+  // dismissed while the attendance fetch is still in flight.
   useEffect(() => {
-    load(month);
+    let alive = true;
+    load(month, () => alive);
+    return () => {
+      alive = false;
+    };
   }, [load, month]);
 
   // Memoise derived data so day-tap (setSelectedDate) doesn't re-run filters/

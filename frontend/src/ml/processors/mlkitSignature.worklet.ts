@@ -11,6 +11,7 @@ export type SignatureResult = {
   embedding: number[];
   magnitude: number;
   latencyMs: number;
+  source?: 'edgeface' | 'mlkit_fallback';
 };
 
 function dist(a: {x: number; y: number}, b: {x: number; y: number}): number {
@@ -142,5 +143,6 @@ export function extractMLKitSignature(
     embedding: sig,
     magnitude: magnitude * 30, // scale to MagFace-like range
     latencyMs: performance.now() - start,
+    source: 'mlkit_fallback',
   };
 }

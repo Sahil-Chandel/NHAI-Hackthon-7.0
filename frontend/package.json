@@ -45,6 +45,7 @@
     "react-native-vision-camera": "^4.6.0",
     "react-native-vision-camera-face-detector": "^1.10.2",
     "react-native-worklets-core": "^1.6.3",
+    "vision-camera-resize-plugin": "^3.2.0",
     "zustand": "^5.0.13"
   },
   "devDependencies": {

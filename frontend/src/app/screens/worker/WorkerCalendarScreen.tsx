@@ -322,8 +322,8 @@ export default function WorkerCalendarScreen() {
                     </Text>
                   )}
                   {selectedDaySummary.punchIn &&
-                    (selectedDaySummary.punchIn.gpsLat ||
-                      selectedDaySummary.punchOut?.gpsLat) && (
+                    (selectedDaySummary.punchIn.gpsLat != null ||
+                      selectedDaySummary.punchOut?.gpsLat != null) && (
                       <Text style={[styles.modalGps, {color: 'rgba(255,255,255,0.7)'}]} numberOfLines={1}>
                         📍{' '}
                         {(
