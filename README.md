@@ -10,9 +10,7 @@ On-device AI face recognition for NHAI highway workforce attendance — offline-
 
 https://github.com/user-attachments/assets/683d9cca-107a-47d5-9b51-bf5f6ba8fa67
 
-**📱 App Demo** — the working app in action
-
-https://github.com/user-attachments/assets/b556ae4d-de3e-404d-91a8-e611f9f8160a
+**📱 App Demo** — the working app in action: [▶️ Watch the demo (MP4)](https://github.com/Sahil-Chandel/NHAI-Hackthon-7.0/releases/download/demo-assets/demo_web.mp4)
 
 📊 **Slides:** [NHAI Hackathon 7.0 Pitch Deck (PDF)](./NHAI%20Hackathon%207.0%20Pitch%20Deck.pdf)
 
